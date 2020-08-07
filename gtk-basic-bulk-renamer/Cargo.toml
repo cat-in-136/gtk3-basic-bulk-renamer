@@ -9,3 +9,9 @@ edition = "2018"
 
 [dependencies]
 basic-bulk-renamer = { path = "../basic-bulk-renamer" }
+gio= "0.9.0"
+glib="0.10.1"
+
+[dependencies.gtk]
+version = "0.9.1"
+features = ["v3_16"]
