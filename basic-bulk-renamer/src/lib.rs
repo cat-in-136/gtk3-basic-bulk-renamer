@@ -3,15 +3,23 @@ use std::io::Error as IoError;
 use std::path::PathBuf;
 use std::{error, fmt, fs};
 
+/// Rename Mapping Pair
+///
+/// first responds to source path and last responds to target path.
 pub type RenameMapPair = (PathBuf, PathBuf);
 
+/// Overwrite mode in case of target file collision
 #[derive(Clone, Copy)]
 pub enum RenameOverwriteMode {
+    /// Change the target file name to avoid overwriting
     ChangeFileName,
+    /// Replace the original file with newer file
     Overwrite,
+    /// Interrupts and throws `RenameError::TargetFileAlreadyExists`
     Error,
 }
 
+/// Bulk rename
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BulkRename {
     pub pairs: Vec<RenameMapPair>,
@@ -24,7 +32,7 @@ impl BulkRename {
         Self { pairs, undo_pairs }
     }
 
-    pub fn fix_target_file_path(target: &PathBuf) -> Result<PathBuf, RenameError> {
+    fn fix_target_file_path(target: &PathBuf) -> Result<PathBuf, RenameError> {
         if target.exists() {
             let file_name = target.file_name().ok_or(RenameError::IllegalOperation)?;
             let new_target = (1..)
@@ -43,7 +51,7 @@ impl BulkRename {
         }
     }
 
-    pub fn check_not_found_source_files(&self) -> Result<(), RenameError> {
+    fn check_not_found_source_files(&self) -> Result<(), RenameError> {
         let not_found_source_files = self
             .pairs
             .iter()
@@ -57,6 +65,7 @@ impl BulkRename {
         Ok(())
     }
 
+    /// Execute renaming
     pub fn execute(&mut self, over_write_mode: RenameOverwriteMode) -> Result<(), RenameError> {
         if self.undo_pairs.as_ref().map_or(true, |v| v.len() > 0) {
             return Err(RenameError::Executed);
@@ -114,6 +123,7 @@ impl BulkRename {
         Ok(())
     }
 
+    /// Returns a bulk renamer for undoing. Returns `None` if it is not undoable.
     pub fn undo_bulk_rename(&self) -> Option<BulkRename> {
         self.undo_pairs
             .as_ref()
@@ -247,13 +257,20 @@ mod test {
     }
 }
 
+/// Rename processing error
 #[derive(Debug)]
 pub enum RenameError {
+    /// Already renaming executed
     Executed,
+    /// Some source files was not found.
     SourceFileNotFound(Vec<RenameMapPair>),
+    /// Target files is already available.
     TargetFileAlreadyExists(RenameMapPair),
+    /// Directory is not writable
     TargetDirectoryNotWritable(RenameMapPair, IoError),
+    /// General IO Error
     IoError(RenameMapPair, IoError),
+    /// General Operation Error
     IllegalOperation,
 }
 
