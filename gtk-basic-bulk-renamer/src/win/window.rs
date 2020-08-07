@@ -1,8 +1,8 @@
 use gio::{ActionMapExt, ApplicationExt, SimpleAction};
 use gtk::prelude::*;
-use gtk::{ListStore, FileChooserDialogBuilder, FileChooserAction, ResponseType};
 use gtk::{Application, TreeView};
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
+use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
 use std::path::{Path, PathBuf};
 
 const ID_ADD_BUTTON: &'static str = "add-button";
@@ -14,6 +14,12 @@ const ID_HEADERBAR: &'static str = "headerbar";
 const ID_MAIN_WINDOW: &'static str = "main-window";
 const ID_NOTEBOOK: &'static str = "notebook";
 const ID_REMOVE_BUTTON: &'static str = "remove-button";
+
+macro_rules! generate_clones {
+    ($($n:ident),+) => (
+        $( let $n = $n.clone(); )+
+    )
+}
 
 pub(crate) struct Window {
     builder: Builder,
@@ -32,19 +38,18 @@ impl Window {
         window
     }
 
-    fn get_cloned_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        let object: T = self.builder.get_object(name).unwrap();
-        object.clone()
+    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.get_object(name).unwrap()
     }
 
     fn init_action(&self, _app: &Application) {
         let main_window = self.main_window();
-
+        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
+        let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
 
         let add_action = SimpleAction::new("add-action", None);
         {
-            let main_window = main_window.clone();
-            let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+            generate_clones!(main_window, file_list_store);
             add_action.connect_activate(move |_, _| {
                 let dialog = FileChooserDialogBuilder::new()
                     .title("Add")
@@ -53,8 +58,11 @@ impl Window {
                     .mnemonics_visible(true)
                     .action(FileChooserAction::Open)
                     .build();
-                dialog.add_buttons(&[("_Cancel", ResponseType::Cancel), ("_OK", ResponseType::Accept)]);
-                let result =  dialog.run();
+                dialog.add_buttons(&[
+                    ("_Cancel", ResponseType::Cancel),
+                    ("_OK", ResponseType::Accept),
+                ]);
+                let result = dialog.run();
                 dialog.close();
 
                 if result == ResponseType::Accept {
@@ -67,10 +75,7 @@ impl Window {
 
         let remove_action = SimpleAction::new("remove-action", None);
         {
-            let selection = self
-                .get_cloned_object::<TreeView>(ID_FILE_LIST)
-                .get_selection();
-            let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+            generate_clones!(file_list_store, selection);
             remove_action.connect_activate(move |_, _| {
                 selection.selected_foreach(|_, _, iter| {
                     file_list_store.remove(iter);
@@ -81,7 +86,7 @@ impl Window {
 
         let clear_action = SimpleAction::new("clear-action", None);
         {
-            let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+            generate_clones!(file_list_store);
             clear_action.connect_activate(move |_, _| {
                 file_list_store.clear();
             });
@@ -101,12 +106,12 @@ impl Window {
     }
 
     pub fn set_files(&self, paths: &[PathBuf]) {
-        let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         file_list_store.clear();
         Self::add_files_to(&file_list_store, paths);
     }
 
     pub fn main_window(&self) -> ApplicationWindow {
-        self.get_cloned_object(ID_MAIN_WINDOW)
+        self.get_object(ID_MAIN_WINDOW)
     }
 }
