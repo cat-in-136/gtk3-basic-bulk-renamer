@@ -39,6 +39,21 @@ impl Window {
 
     fn init_action(&self, _app: &Application) {
         let main_window = self.main_window();
+
+        let remove_action = SimpleAction::new("remove-action", None);
+        {
+            let selection = self
+                .get_cloned_object::<TreeView>(ID_FILE_LIST)
+                .get_selection();
+            let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+            remove_action.connect_activate(move |_, _| {
+                selection.selected_foreach(|_, _, iter| {
+                    file_list_store.remove(iter);
+                });
+            });
+        }
+        main_window.add_action(&remove_action);
+
         let clear_action = SimpleAction::new("clear-action", None);
         {
             let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
