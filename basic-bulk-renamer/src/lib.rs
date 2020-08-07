@@ -1,9 +1,7 @@
 use std::ffi::OsString;
-use std::fmt::Formatter;
 use std::io::Error as IoError;
 use std::path::PathBuf;
 use std::{error, fmt, fs};
-use tempfile::NamedTempFile;
 
 pub type RenameMapPair = (PathBuf, PathBuf);
 
@@ -69,20 +67,21 @@ impl BulkRename {
         let mut temp_filenames = Vec::with_capacity(self.pairs.len());
         for pair in self.pairs.iter() {
             let target_parent = pair.1.parent().ok_or(RenameError::IllegalOperation)?;
-            let target_temp_filename = {
-                let temp_file = NamedTempFile::new_in(target_parent).map_err(|error| {
-                    RenameError::TargetDirectoryNotWritable(pair.clone(), error)
-                })?;
-                PathBuf::from(temp_file.path())
-            };
-            debug_assert!(!target_temp_filename.exists());
+            let temp_file = tempfile::Builder::new()
+                .prefix(pair.1.file_name().unwrap_or_default())
+                .tempfile_in(target_parent)
+                .map_err(|error| RenameError::TargetDirectoryNotWritable(pair.clone(), error))?;
+            let temp_file_path = temp_file.into_temp_path();
+            let temp_file_path = temp_file_path
+                .keep()
+                .map_err(|_| RenameError::IllegalOperation)?;
 
-            fs::rename(&pair.0, &target_temp_filename)
+            fs::rename(&pair.0, &temp_file_path)
                 .map_err(|error| RenameError::IoError(pair.clone(), error))?;
             if let Some(undo_pairs) = self.undo_pairs.as_mut() {
-                undo_pairs.push((target_temp_filename.clone(), pair.0.clone()));
+                undo_pairs.push((temp_file_path.clone(), pair.0.clone()));
             }
-            temp_filenames.push(target_temp_filename);
+            temp_filenames.push(temp_file_path);
         }
 
         // Step 2 Move them to target
@@ -272,7 +271,7 @@ impl error::Error for RenameError {
 }
 
 impl fmt::Display for RenameError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RenameError::Executed => f.write_str("Already Executed"),
             RenameError::SourceFileNotFound(pairs) => f.write_fmt(format_args!(
