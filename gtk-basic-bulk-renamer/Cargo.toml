@@ -1,0 +1,11 @@
+[package]
+name = "gtk-basic-bulk-renamer"
+version = "0.1.0"
+description = "Simple Bulk Renamer on GTK+"
+authors = ["@cat_in_136"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+basic-bulk-renamer = { path = "../basic-bulk-renamer" }
