@@ -1,6 +1,6 @@
 use gio::{ActionMapExt, ApplicationExt, SimpleAction};
 use gtk::prelude::*;
-use gtk::ListStore;
+use gtk::{ListStore, FileChooserDialogBuilder, FileChooserAction, ResponseType};
 use gtk::{Application, TreeView};
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use std::path::{Path, PathBuf};
@@ -40,6 +40,31 @@ impl Window {
     fn init_action(&self, _app: &Application) {
         let main_window = self.main_window();
 
+
+        let add_action = SimpleAction::new("add-action", None);
+        {
+            let main_window = main_window.clone();
+            let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+            add_action.connect_activate(move |_, _| {
+                let dialog = FileChooserDialogBuilder::new()
+                    .title("Add")
+                    .parent(&main_window)
+                    .select_multiple(true)
+                    .mnemonics_visible(true)
+                    .action(FileChooserAction::Open)
+                    .build();
+                dialog.add_buttons(&[("_Cancel", ResponseType::Cancel), ("_OK", ResponseType::Accept)]);
+                let result =  dialog.run();
+                dialog.close();
+
+                if result == ResponseType::Accept {
+                    let paths = dialog.get_filenames();
+                    Self::add_files_to(&file_list_store, &paths);
+                }
+            });
+        }
+        main_window.add_action(&add_action);
+
         let remove_action = SimpleAction::new("remove-action", None);
         {
             let selection = self
@@ -64,10 +89,7 @@ impl Window {
         main_window.add_action(&clear_action);
     }
 
-    pub fn set_files(&self, paths: &[PathBuf]) {
-        let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
-        file_list_store.clear();
-
+    fn add_files_to(file_list_store: &ListStore, paths: &[PathBuf]) {
         for path in paths.iter() {
             let iter = file_list_store.append();
             file_list_store.set(
@@ -76,6 +98,12 @@ impl Window {
                 &[&path.display().to_string(), &path.display().to_string()],
             );
         }
+    }
+
+    pub fn set_files(&self, paths: &[PathBuf]) {
+        let file_list_store = self.get_cloned_object::<ListStore>(ID_FILE_LIST_STORE);
+        file_list_store.clear();
+        Self::add_files_to(&file_list_store, paths);
     }
 
     pub fn main_window(&self) -> ApplicationWindow {
