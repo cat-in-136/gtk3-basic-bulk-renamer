@@ -45,6 +45,14 @@ impl Window {
         self.builder.get_object(name).unwrap()
     }
 
+    fn get_simple_action(&self, name: &str) -> SimpleAction {
+        self.main_window()
+            .lookup_action(name)
+            .unwrap()
+            .downcast::<_>()
+            .unwrap()
+    }
+
     fn init_actions(&self, _app: &Application) {
         let main_window = self.main_window();
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
@@ -98,25 +106,14 @@ impl Window {
     }
 
     fn init_signals(&self, _app: &Application) {
-        let main_window = self.main_window();
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
 
         let update_action_enabled = {
-            generate_clones!(main_window, file_list_store, selection);
-
+            generate_clones!(file_list_store, selection);
+            let remove_action = self.get_simple_action("remove-action");
+            let clear_action = self.get_simple_action("clear-action");
             Rc::new(RefCell::new(move || {
-                let remove_action = main_window
-                    .lookup_action("remove-action")
-                    .unwrap()
-                    .downcast::<SimpleAction>()
-                    .unwrap();
-                let clear_action = main_window
-                    .lookup_action("clear-action")
-                    .unwrap()
-                    .downcast::<SimpleAction>()
-                    .unwrap();
-
                 remove_action.set_enabled(selection.count_selected_rows() > 0);
                 clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
             }))
@@ -135,7 +132,6 @@ impl Window {
             generate_clones!(update_action_enabled);
             file_list_store.connect_row_deleted(move |_, _| update_action_enabled.borrow_mut()());
         }
-
         update_action_enabled.clone().borrow_mut()();
     }
 
