@@ -28,15 +28,15 @@ pub(crate) struct Window {
 }
 
 impl Window {
-    pub fn new(app: &Application) -> Self {
+    pub fn new<P: IsA<Application>>(app: Option<&P>) -> Self {
         let builder = Builder::from_string(include_str!("window.glade"));
         let window = Self { builder };
 
-        window.init_actions(app);
-        window.init_signals(app);
+        window.init_actions();
+        window.init_signals();
 
         let main_window = window.main_window();
-        main_window.set_application(Some(app));
+        main_window.set_application(app);
 
         window
     }
@@ -53,7 +53,7 @@ impl Window {
             .unwrap()
     }
 
-    fn init_actions(&self, _app: &Application) {
+    fn init_actions(&self) {
         let main_window = self.main_window();
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
@@ -105,7 +105,7 @@ impl Window {
         main_window.add_action(&clear_action);
     }
 
-    fn init_signals(&self, _app: &Application) {
+    fn init_signals(&self) {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
 

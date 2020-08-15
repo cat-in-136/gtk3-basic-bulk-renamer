@@ -17,11 +17,11 @@ fn main() {
             .iter()
             .filter_map(|f| f.get_path())
             .collect::<Vec<_>>();
-        win::create_with_path(application, &path).show_all();
+        win::create_with_path(Some(application), &path).show_all();
     });
 
     application.connect_activate(|application| {
-        win::create(application).show_all();
+        win::create(Some(application)).show_all();
     });
     application.run(&env::args().collect::<Vec<_>>());
 }
