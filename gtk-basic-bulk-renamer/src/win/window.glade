@@ -8,9 +8,11 @@
   </object>
   <object class="GtkListStore" id="file-list-store">
     <columns>
-      <!-- column-name before-column -->
+      <!-- column-name name-column -->
       <column type="gchararray"/>
-      <!-- column-name after-column -->
+      <!-- column-name new-name-column -->
+      <column type="gchararray"/>
+      <!-- column-name parent-directory-column -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -28,6 +30,7 @@
           <object class="GtkScrolledWindow">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="hscrollbar_policy">never</property>
             <property name="shadow_type">in</property>
             <child>
               <object class="GtkTreeView" id="file-list">
@@ -35,14 +38,16 @@
                 <property name="can_focus">True</property>
                 <property name="model">file-list-store</property>
                 <property name="rules_hint">True</property>
+                <property name="enable_search">False</property>
+                <property name="tooltip_column">2</property>
                 <child internal-child="selection">
                   <object class="GtkTreeSelection"/>
                 </child>
                 <child>
-                  <object class="GtkTreeViewColumn">
+                  <object class="GtkTreeViewColumn" id="file-list-column-name">
                     <property name="resizable">True</property>
                     <property name="sizing">fixed</property>
-                    <property name="title" translatable="yes">From</property>
+                    <property name="title" translatable="yes">Name</property>
                     <property name="expand">True</property>
                     <child>
                       <object class="GtkCellRendererText">
@@ -55,10 +60,10 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkTreeViewColumn">
+                  <object class="GtkTreeViewColumn" id="file-list-column-new-name">
                     <property name="resizable">True</property>
                     <property name="sizing">fixed</property>
-                    <property name="title" translatable="yes">To</property>
+                    <property name="title" translatable="yes">New Name</property>
                     <property name="expand">True</property>
                     <child>
                       <object class="GtkCellRendererText">

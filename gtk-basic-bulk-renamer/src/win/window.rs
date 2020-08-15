@@ -96,11 +96,15 @@ impl Window {
 
     fn add_files_to(file_list_store: &ListStore, paths: &[PathBuf]) {
         for path in paths.iter() {
+            let name = path.file_name().unwrap_or_default().to_str().unwrap_or_default().to_string();
+            let new_name = name.clone();
+            let parent = path.parent().unwrap().display().to_string();
+
             let iter = file_list_store.append();
             file_list_store.set(
                 &iter,
-                &[0, 1],
-                &[&path.display().to_string(), &path.display().to_string()],
+                &[0, 1, 2],
+                &[&name, &new_name, &parent],
             );
         }
     }
