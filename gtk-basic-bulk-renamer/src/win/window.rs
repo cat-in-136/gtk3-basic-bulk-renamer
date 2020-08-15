@@ -3,7 +3,9 @@ use gtk::prelude::*;
 use gtk::{Application, TreeView};
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 const ID_ADD_BUTTON: &'static str = "add-button";
 const ID_CLEAR_BUTTON: &'static str = "clear-button";
@@ -30,7 +32,8 @@ impl Window {
         let builder = Builder::from_string(include_str!("window.glade"));
         let window = Self { builder };
 
-        window.init_action(app);
+        window.init_actions(app);
+        window.init_signals(app);
 
         let main_window = window.main_window();
         main_window.set_application(Some(app));
@@ -42,7 +45,7 @@ impl Window {
         self.builder.get_object(name).unwrap()
     }
 
-    fn init_action(&self, _app: &Application) {
+    fn init_actions(&self, _app: &Application) {
         let main_window = self.main_window();
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
@@ -94,18 +97,61 @@ impl Window {
         main_window.add_action(&clear_action);
     }
 
+    fn init_signals(&self, _app: &Application) {
+        let main_window = self.main_window();
+        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
+        let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
+
+        let update_action_enabled = {
+            generate_clones!(main_window, file_list_store, selection);
+
+            Rc::new(RefCell::new(move || {
+                let remove_action = main_window
+                    .lookup_action("remove-action")
+                    .unwrap()
+                    .downcast::<SimpleAction>()
+                    .unwrap();
+                let clear_action = main_window
+                    .lookup_action("clear-action")
+                    .unwrap()
+                    .downcast::<SimpleAction>()
+                    .unwrap();
+
+                remove_action.set_enabled(selection.count_selected_rows() > 0);
+                clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
+            }))
+        };
+
+        {
+            generate_clones!(update_action_enabled);
+            selection.connect_changed(move |_| update_action_enabled.borrow_mut()());
+        }
+        {
+            generate_clones!(update_action_enabled);
+            file_list_store
+                .connect_row_inserted(move |_, _, _| update_action_enabled.borrow_mut()());
+        }
+        {
+            generate_clones!(update_action_enabled);
+            file_list_store.connect_row_deleted(move |_, _| update_action_enabled.borrow_mut()());
+        }
+
+        update_action_enabled.clone().borrow_mut()();
+    }
+
     fn add_files_to(file_list_store: &ListStore, paths: &[PathBuf]) {
         for path in paths.iter() {
-            let name = path.file_name().unwrap_or_default().to_str().unwrap_or_default().to_string();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default()
+                .to_string();
             let new_name = name.clone();
             let parent = path.parent().unwrap().display().to_string();
 
             let iter = file_list_store.append();
-            file_list_store.set(
-                &iter,
-                &[0, 1, 2],
-                &[&name, &new_name, &parent],
-            );
+            file_list_store.set(&iter, &[0, 1, 2], &[&name, &new_name, &parent]);
         }
     }
 
