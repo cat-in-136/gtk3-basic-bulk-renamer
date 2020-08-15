@@ -2,6 +2,7 @@ use gtk::prelude::IsA;
 use gtk::{Application, ApplicationWindow};
 use std::path::PathBuf;
 
+mod provider;
 mod window;
 
 pub fn create<P: IsA<Application>>(app: Option<&P>) -> ApplicationWindow {

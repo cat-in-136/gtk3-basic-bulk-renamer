@@ -7,7 +7,7 @@ mod win;
 
 fn main() {
     let application = Application::new(
-        Some("io.github.cat-in-136.gtk-basic-bulk-renamer"),
+        Some("io.github.cat-in-136.gtk-basic-bulk-provider"),
         ApplicationFlags::HANDLES_OPEN,
     )
     .expect("Application Initialization Error");

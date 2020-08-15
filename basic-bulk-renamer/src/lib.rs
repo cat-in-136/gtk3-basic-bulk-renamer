@@ -123,7 +123,7 @@ impl BulkRename {
         Ok(())
     }
 
-    /// Returns a bulk renamer for undoing. Returns `None` if it is not undoable.
+    /// Returns a bulk provider for undoing. Returns `None` if it is not undoable.
     pub fn undo_bulk_rename(&self) -> Option<BulkRename> {
         self.undo_pairs
             .as_ref()

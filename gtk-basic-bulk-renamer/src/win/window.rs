@@ -1,6 +1,7 @@
+use crate::win::provider::Provider;
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
-use gtk::{Application, TreeView};
+use gtk::{Application, LabelBuilder, Notebook, TreeView};
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
 use std::cell::RefCell;
@@ -29,15 +30,18 @@ macro_rules! generate_clones {
 
 pub(crate) struct Window {
     builder: Builder,
+    provider: Provider,
 }
 
 impl Window {
     pub fn new<P: IsA<Application>>(app: Option<&P>) -> Self {
         let builder = Builder::from_string(include_str!("window.glade"));
-        let window = Self { builder };
+        let provider = Provider::new(None);
+        let window = Self { builder, provider };
 
         window.init_actions();
         window.init_signals();
+        window.init_provider_panels();
 
         let main_window = window.main_window();
         main_window.set_application(app);
@@ -139,6 +143,16 @@ impl Window {
         update_action_enabled.clone().borrow_mut()();
     }
 
+    fn init_provider_panels(&self) {
+        let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
+
+        let panels = self.provider.get_panels();
+        for (label, panel) in panels.iter() {
+            let tab_label = LabelBuilder::new().label(label).build();
+            notebook.append_page(panel, Some(&tab_label));
+        }
+    }
+
     fn add_files_to(file_list_store: &ListStore, paths: &[PathBuf]) {
         for path in paths.iter() {
             let name = path
@@ -166,6 +180,7 @@ impl Window {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use gio::ActionExt;
