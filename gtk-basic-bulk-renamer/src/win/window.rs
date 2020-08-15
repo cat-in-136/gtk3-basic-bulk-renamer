@@ -7,6 +7,10 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+const ACTION_ADD: &'static str = "add-action";
+const ACTION_REMOVE: &'static str = "remove-action";
+const ACTION_CLEAR: &'static str = "clear-action";
+
 const ID_ADD_BUTTON: &'static str = "add-button";
 const ID_CLEAR_BUTTON: &'static str = "clear-button";
 const ID_EXECUTE_BUTTON: &'static str = "execute-button";
@@ -58,7 +62,7 @@ impl Window {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
 
-        let add_action = SimpleAction::new("add-action", None);
+        let add_action = SimpleAction::new(ACTION_ADD, None);
         {
             generate_clones!(main_window, file_list_store);
             add_action.connect_activate(move |_, _| {
@@ -84,7 +88,7 @@ impl Window {
         }
         main_window.add_action(&add_action);
 
-        let remove_action = SimpleAction::new("remove-action", None);
+        let remove_action = SimpleAction::new(ACTION_REMOVE, None);
         {
             generate_clones!(file_list_store, selection);
             remove_action.connect_activate(move |_, _| {
@@ -95,7 +99,7 @@ impl Window {
         }
         main_window.add_action(&remove_action);
 
-        let clear_action = SimpleAction::new("clear-action", None);
+        let clear_action = SimpleAction::new(ACTION_CLEAR, None);
         {
             generate_clones!(file_list_store);
             clear_action.connect_activate(move |_, _| {
@@ -111,8 +115,8 @@ impl Window {
 
         let update_action_enabled = {
             generate_clones!(file_list_store, selection);
-            let remove_action = self.get_simple_action("remove-action");
-            let clear_action = self.get_simple_action("clear-action");
+            let remove_action = self.get_simple_action(ACTION_REMOVE);
+            let clear_action = self.get_simple_action(ACTION_CLEAR);
             Rc::new(RefCell::new(move || {
                 remove_action.set_enabled(selection.count_selected_rows() > 0);
                 clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
@@ -159,5 +163,92 @@ impl Window {
 
     pub fn main_window(&self) -> ApplicationWindow {
         self.get_object(ID_MAIN_WINDOW)
+    }
+}
+
+mod test {
+    use super::*;
+    use gio::ActionExt;
+
+    #[test]
+    fn test_init_signals() {
+        gtk::init().unwrap();
+
+        let win = Window::new::<Application>(None);
+        win.main_window().show_all();
+
+        assert_eq!(
+            win.get_object::<ListStore>(ID_FILE_LIST_STORE)
+                .iter_n_children(None),
+            0
+        );
+
+        assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
+        assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), false);
+        assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), false);
+
+        win.set_files(&[PathBuf::from("test")]);
+        assert_eq!(
+            win.get_object::<ListStore>(ID_FILE_LIST_STORE)
+                .iter_n_children(None),
+            1
+        );
+
+        assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
+        assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), false);
+        assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
+
+        gtk_test::click(&win.get_object::<TreeView>(ID_FILE_LIST));
+        assert_eq!(
+            win.get_object::<TreeView>(ID_FILE_LIST)
+                .get_selection()
+                .count_selected_rows(),
+            1
+        );
+
+        assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
+        assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), true);
+        assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
+    }
+
+    #[test]
+    fn test_set_files() {
+        gtk::init().unwrap();
+
+        let win = Window::new::<Application>(None);
+        // win.main_window().show_all();
+
+        let file_list_store = win.get_object::<ListStore>(ID_FILE_LIST_STORE);
+        assert_eq!(file_list_store.iter_n_children(None), 0);
+
+        win.set_files(&[PathBuf::from("test"), PathBuf::from("/test2")]);
+        assert_eq!(file_list_store.iter_n_children(None), 2);
+
+        let iter = file_list_store.iter_nth_child(None, 0).unwrap();
+        assert_eq!(
+            file_list_store.get_value(&iter, 0).get(),
+            Ok(Some(String::from("test")))
+        );
+        assert_eq!(
+            file_list_store.get_value(&iter, 1).get(),
+            Ok(Some(String::from("test")))
+        );
+        assert_eq!(
+            file_list_store.get_value(&iter, 2).get(),
+            Ok(Some(String::from("")))
+        );
+        let iter = file_list_store.iter_nth_child(None, 1).unwrap();
+        assert_eq!(
+            file_list_store.get_value(&iter, 0).get(),
+            Ok(Some(String::from("test2")))
+        );
+        assert_eq!(
+            file_list_store.get_value(&iter, 1).get(),
+            Ok(Some(String::from("test2")))
+        );
+        assert_eq!(
+            file_list_store.get_value(&iter, 2).get(),
+            Ok(Some(String::from("/")))
+        );
     }
 }
