@@ -2,7 +2,6 @@ use gio::prelude::ApplicationExtManual;
 use gio::{ApplicationExt, ApplicationFlags, FileExt};
 use gtk::{Application, WidgetExt};
 use std::env;
-use std::path::PathBuf;
 
 mod win;
 

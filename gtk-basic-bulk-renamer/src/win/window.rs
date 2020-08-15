@@ -1,10 +1,10 @@
-use gio::{ActionMapExt, ApplicationExt, SimpleAction};
+use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
 use gtk::{Application, TreeView};
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 const ID_ADD_BUTTON: &'static str = "add-button";
