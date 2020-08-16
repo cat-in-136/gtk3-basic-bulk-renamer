@@ -1,4 +1,4 @@
-use crate::win::provider::Provider;
+use crate::win::provider::{Provider, RenamerType};
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
 use gtk::{Application, LabelBuilder, Notebook, TreeView};
@@ -7,6 +7,7 @@ use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use strum::IntoEnumIterator;
 
 const ACTION_ADD: &'static str = "add-action";
 const ACTION_REMOVE: &'static str = "remove-action";
@@ -145,11 +146,11 @@ impl Window {
 
     fn init_provider_panels(&self) {
         let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
-
-        let panels = self.provider.get_panels();
-        for (label, panel) in panels.iter() {
-            let tab_label = LabelBuilder::new().label(label).build();
-            notebook.append_page(panel, Some(&tab_label));
+        for renamer_type in RenamerType::iter() {
+            let renamer = self.provider.renamer_of(renamer_type);
+            let tab_label = LabelBuilder::new().label(renamer_type.label()).build();
+            let panel = renamer.get_panel();
+            notebook.append_page(&panel, Some(&tab_label));
         }
     }
 

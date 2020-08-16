@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::win::provider::ProviderCommon;
+use crate::win::provider::Renamer;
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry};
 use regex::{Regex, RegexBuilder};
@@ -99,7 +99,7 @@ impl ReplaceRenamer {
     }
 }
 
-impl ProviderCommon for ReplaceRenamer {
+impl Renamer for ReplaceRenamer {
     fn get_panel(&self) -> Container {
         self.get_object::<Container>(ID_REPLACE_RENAMER_PANEL)
     }
