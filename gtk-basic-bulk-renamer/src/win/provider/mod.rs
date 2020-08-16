@@ -31,3 +31,20 @@ impl Provider {
         .into_boxed_slice()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use gtk::prelude::*;
+    use gtk::BoxBuilder;
+
+    #[test]
+    fn test_provider() {
+        gtk::init().unwrap();
+        let provider = Provider::new(None);
+
+        for (label, panel) in provider.get_panels().iter() {
+            assert!(label.len() > 0);
+        }
+    }
+}
