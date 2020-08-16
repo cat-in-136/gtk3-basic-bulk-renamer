@@ -17,7 +17,7 @@ pub struct Provider {
 }
 
 impl Provider {
-    pub fn new(callback: Option<Rc<RefCell<fn()>>>) -> Self {
+    pub fn new(callback: Option<Rc<RefCell<dyn Fn()>>>) -> Self {
         let replace_renamer = ReplaceRenamer::new(callback);
 
         Self { replace_renamer }
@@ -36,7 +36,6 @@ impl Provider {
 mod test {
     use super::*;
     use gtk::prelude::*;
-    use gtk::BoxBuilder;
 
     #[test]
     fn test_provider() {
@@ -45,6 +44,7 @@ mod test {
 
         for (label, panel) in provider.get_panels().iter() {
             assert!(label.len() > 0);
+            assert!(panel.get_children().len() > 0);
         }
     }
 }
