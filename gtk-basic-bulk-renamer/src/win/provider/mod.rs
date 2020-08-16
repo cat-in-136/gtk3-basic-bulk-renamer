@@ -2,6 +2,7 @@ use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::vec::IntoIter;
 
 mod replace_renamer;
 
@@ -9,7 +10,7 @@ pub(crate) trait ProviderCommon {
     /// Get panel
     fn get_panel(&self) -> Container;
     /// Apply replacement
-    fn apply_replacement(&self, files: &[(String, String)]) -> &[(String, String)];
+    fn apply_replacement(&self, files: &[(String, String)]) -> IntoIter<(String, String)>;
 }
 
 pub struct Provider {

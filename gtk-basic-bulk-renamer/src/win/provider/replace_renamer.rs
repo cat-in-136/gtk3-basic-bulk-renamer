@@ -3,6 +3,7 @@ use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::vec::IntoIter;
 
 const ID_REPLACE_RENAMER_PANEL: &'static str = "replace-renamer-panel";
 const ID_PATTERN_ENTRY: &'static str = "pattern-entry";
@@ -61,8 +62,12 @@ impl ProviderCommon for ReplaceRenamer {
         self.get_object::<Container>(ID_REPLACE_RENAMER_PANEL)
     }
 
-    fn apply_replacement(&self, files: &[(String, String)]) -> &[(String, String)] {
-        unimplemented!()
+    fn apply_replacement(&self, files: &[(String, String)]) -> IntoIter<(String, String)> {
+        files
+            .iter()
+            .map(|(file_name, dir_name)| (file_name.clone(), dir_name.clone()))
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }
 
@@ -116,13 +121,16 @@ mod test {
     }
 
     #[test]
-    #[should_panic]// TODO Implement
     fn test_replace_renamer_apply_replacement() {
         gtk::init().unwrap();
-        let replace_renamer =  ReplaceRenamer::new(None) ;
+        let replace_renamer = ReplaceRenamer::new(None);
 
-        let replacement = replace_renamer.apply_replacement(&[
-            ("file_name_from".to_string(), "dirname".to_string()),
-        ]);
+        let replacement = replace_renamer
+            .apply_replacement(&[("file_name_from".to_string(), "dirname".to_string())]);
+
+        assert_eq!(
+            replacement.as_slice(),
+            &[("file_name_from".to_string(), "dirname".to_string()),]
+        );
     }
 }
