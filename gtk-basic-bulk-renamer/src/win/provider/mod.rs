@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
 use std::cell::RefCell;
@@ -10,10 +11,13 @@ pub(crate) trait ProviderCommon {
     /// Get panel
     fn get_panel(&self) -> Container;
     /// Apply replacement
-    fn apply_replacement(&self, files: &[(String, String)]) -> IntoIter<(String, String)>;
+    fn apply_replacement(
+        &self,
+        files: &[(String, String)],
+    ) -> Result<IntoIter<(String, String)>, Error>;
 }
 
-pub struct Provider {
+pub(crate) struct Provider {
     replace_renamer: ReplaceRenamer,
 }
 
