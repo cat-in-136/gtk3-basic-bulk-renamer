@@ -1,6 +1,7 @@
 use crate::win::provider::ProviderCommon;
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry};
+use regex::{Regex, RegexBuilder};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec::IntoIter;
@@ -52,6 +53,50 @@ impl ReplaceRenamer {
         }
     }
 
+    fn get_replacement_rule(&self) -> (Regex, String) {
+        let pattern = self.get_object::<Entry>(ID_PATTERN_ENTRY).get_text();
+        let replacement = self.get_object::<Entry>(ID_REPLACEMENT_ENTRY).get_text();
+        let is_regexp_supported = self
+            .get_object::<CheckButton>(ID_REGEXP_SUPPORTED)
+            .get_active();
+        let is_case_sensitive = self
+            .get_object::<CheckButton>(ID_CASE_SENSITIVE)
+            .get_active();
+
+        let (pattern, replacement) = if is_regexp_supported {
+            (pattern.to_string(), replacement.to_string())
+        } else {
+            (
+                regex::escape(pattern.as_str()),
+                replacement.replace("$", "$$"),
+            )
+        };
+
+        // TODO unwrap: regexp error
+        (
+            RegexBuilder::new(pattern.as_str())
+                .case_insensitive(!is_case_sensitive)
+                .build()
+                .unwrap(),
+            replacement.to_string(),
+        )
+    }
+
+    fn apply_replace_with(
+        matcher: &Regex,
+        replacement: &str,
+        files: &[(String, String)],
+    ) -> IntoIter<(String, String)> {
+        files
+            .iter()
+            .map(|(file_name, dir_name)| {
+                let new_file_name = matcher.replace_all(file_name.as_str(), replacement);
+                (new_file_name.to_string(), dir_name.clone())
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+
     fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
         self.builder.get_object(name).unwrap()
     }
@@ -63,11 +108,8 @@ impl ProviderCommon for ReplaceRenamer {
     }
 
     fn apply_replacement(&self, files: &[(String, String)]) -> IntoIter<(String, String)> {
-        files
-            .iter()
-            .map(|(file_name, dir_name)| (file_name.clone(), dir_name.clone()))
-            .collect::<Vec<_>>()
-            .into_iter()
+        let (matcher, replacement) = self.get_replacement_rule();
+        Self::apply_replace_with(&matcher, replacement.as_str(), files)
     }
 }
 
@@ -121,16 +163,66 @@ mod test {
     }
 
     #[test]
-    fn test_replace_renamer_apply_replacement() {
-        gtk::init().unwrap();
-        let replace_renamer = ReplaceRenamer::new(None);
-
-        let replacement = replace_renamer
-            .apply_replacement(&[("file_name_from".to_string(), "dirname".to_string())]);
+    fn test_replace_renamer_apply_replacement_with() {
+        let matcher = RegexBuilder::new("a+_(\\d)").build().unwrap();
 
         assert_eq!(
-            replacement.as_slice(),
-            &[("file_name_from".to_string(), "dirname".to_string()),]
+            ReplaceRenamer::apply_replace_with(
+                &matcher,
+                "x_$1",
+                &[
+                    ("a_1.txt".to_string(), "/tmp".to_string()),
+                    ("aa_2_a_3.txt".to_string(), "/home/foo".to_string()),
+                    ("b_1".to_string(), "/home/foo".to_string()),
+                ]
+            )
+                .collect::<Vec<_>>(),
+            vec![
+                ("x_1.txt".to_string(), "/tmp".to_string()),
+                ("x_2_x_3.txt".to_string(), "/home/foo".to_string()),
+                ("b_1".to_string(), "/home/foo".to_string()),
+            ]
         );
+    }
+
+    #[test]
+    fn test_replace_renamer_get_replacement_rule_and_apply_replacement() {
+        gtk::init().unwrap();
+        let replace_renamer = ReplaceRenamer::new(None);
+        let pattern_entry = replace_renamer.get_object::<Entry>(ID_PATTERN_ENTRY);
+        let regexp_supported = replace_renamer.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
+        let replacement_entry = replace_renamer.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
+        let case_insensitive = replace_renamer.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+
+        pattern_entry.set_text("a+bC(1)");
+        replacement_entry.set_text("def$1");
+
+        regexp_supported.set_active(false);
+        case_insensitive.set_active(false);
+        let (matcher, replacement) = replace_renamer.get_replacement_rule();
+        assert_eq!(matcher.as_str(), "a\\+bC\\(1\\)");
+        assert_eq!(replacement.as_str(), "def$$1");
+        assert!(matcher.is_match("A+BC(1)"));
+
+        regexp_supported.set_active(false);
+        case_insensitive.set_active(true);
+        let (matcher, replacement) = replace_renamer.get_replacement_rule();
+        assert_eq!(matcher.as_str(), "a\\+bC\\(1\\)");
+        assert_eq!(replacement.as_str(), "def$$1");
+        assert!(!matcher.is_match("A+BC(1)"));
+
+        regexp_supported.set_active(true);
+        case_insensitive.set_active(false);
+        let (matcher, replacement) = replace_renamer.get_replacement_rule();
+        assert_eq!(matcher.as_str(), "a+bC(1)");
+        assert_eq!(replacement.as_str(), "def$1");
+        assert!(matcher.is_match("AaBC1"));
+
+        regexp_supported.set_active(true);
+        case_insensitive.set_active(true);
+        let (matcher, replacement) = replace_renamer.get_replacement_rule();
+        assert_eq!(matcher.as_str(), "a+bC(1)");
+        assert_eq!(replacement.as_str(), "def$1");
+        assert!(!matcher.is_match("AaBC1"));
     }
 }
