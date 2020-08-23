@@ -35,3 +35,55 @@ impl<T, E> SubjectImpl<T, E> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test {
+    use core::sync::atomic::{AtomicUsize, Ordering};
+    use super::*;
+    use crate::error::Error;
+
+    pub(crate) struct CounterObserver {
+        count: Rc<RefCell<AtomicUsize>>,
+    }
+
+    impl CounterObserver {
+        pub(crate) fn new() -> Self {
+            Self {
+                count: Rc::new(RefCell::new(AtomicUsize::new(0))),
+            }
+        }
+
+        pub(crate) fn reset(&self) {
+            let count = self.count.borrow_mut();
+            count.store(0, Ordering::SeqCst);
+        }
+
+        pub(crate) fn count(&self) -> usize {
+            let count = self.count.borrow();
+            count.load(Ordering::SeqCst)
+        }
+    }
+
+    impl Observer<(), Error> for CounterObserver {
+        fn update(&self, arg: &()) -> Result<(), Error> {
+            let count = self.count.borrow_mut();
+            count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_subject_impl() {
+        let subject = SubjectImpl::new();
+        let observer = Rc::new(CounterObserver::new());
+
+        subject.attach(observer.clone());
+        assert_eq!(subject.observers.borrow().len(), 1);
+
+        observer.reset();
+        subject.notify(()).unwrap();
+        assert_eq!(observer.count(), 1);
+    }
+}
+
+

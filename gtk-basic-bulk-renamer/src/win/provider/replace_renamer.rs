@@ -130,38 +130,7 @@ impl Renamer for ReplaceRenamer {
 mod test {
     use super::*;
     use gtk::WindowBuilder;
-    use std::cell::RefCell;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    struct CounterObserver {
-        count: Rc<RefCell<AtomicUsize>>,
-    }
-
-    impl CounterObserver {
-        fn new() -> Self {
-            Self {
-                count: Rc::new(RefCell::new(AtomicUsize::new(0))),
-            }
-        }
-
-        fn reset(&self) {
-            let count = self.count.borrow_mut();
-            count.store(0, Ordering::SeqCst);
-        }
-
-        fn count(&self) -> usize {
-            let count = self.count.borrow();
-            count.load(Ordering::SeqCst)
-        }
-    }
-
-    impl Observer<(), Error> for CounterObserver {
-        fn update(&self, arg: &()) -> Result<(), Error> {
-            let count = self.count.borrow_mut();
-            count.fetch_add(1, Ordering::SeqCst);
-            Ok(())
-        }
-    }
+    use crate::observer::test::CounterObserver;
 
     #[test]
     fn test_replace_renamer_callback() {
