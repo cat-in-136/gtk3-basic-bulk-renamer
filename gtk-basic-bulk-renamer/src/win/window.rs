@@ -37,7 +37,7 @@ pub(crate) struct Window {
 impl Window {
     pub fn new<P: IsA<Application>>(app: Option<&P>) -> Self {
         let builder = Builder::from_string(include_str!("window.glade"));
-        let provider = Provider::new(None);
+        let provider = Provider::new();
         let window = Self { builder, provider };
 
         window.init_actions();

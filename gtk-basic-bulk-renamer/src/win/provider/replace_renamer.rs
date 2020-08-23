@@ -1,9 +1,9 @@
 use crate::error::Error;
+use crate::observer::{Observer, SubjectImpl};
 use crate::win::provider::Renamer;
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry};
 use regex::{Regex, RegexBuilder};
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec::IntoIter;
 
@@ -15,13 +15,17 @@ const ID_CASE_SENSITIVE: &'static str = "case-sensitive";
 
 pub struct ReplaceRenamer {
     builder: Builder,
-    callback: Option<Rc<RefCell<dyn Fn()>>>,
+    change_subject: Rc<SubjectImpl<(), Error>>,
 }
 
 impl ReplaceRenamer {
-    pub fn new(callback: Option<Rc<RefCell<dyn Fn()>>>) -> Self {
+    pub fn new() -> Self {
         let builder = Builder::from_string(include_str!("replace_renamer.glade"));
-        let renamer = Self { builder, callback };
+        let change_subject = Rc::new(SubjectImpl::new());
+        let renamer = Self {
+            builder,
+            change_subject,
+        };
 
         renamer.init_callback();
 
@@ -29,29 +33,30 @@ impl ReplaceRenamer {
     }
 
     fn init_callback(&self) {
-        if let Some(callback) = &self.callback {
-            let pattern_entry = self.get_object::<Entry>(ID_PATTERN_ENTRY);
-            let regexp_supported = self.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
-            let replacement_entry = self.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
-            let case_insensitive = self.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+        let pattern_entry = self.get_object::<Entry>(ID_PATTERN_ENTRY);
+        let regexp_supported = self.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
+        let replacement_entry = self.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
+        let case_insensitive = self.get_object::<CheckButton>(ID_CASE_SENSITIVE);
 
-            {
-                let callback = callback.clone();
-                pattern_entry.connect_changed(move |_| callback.borrow_mut()());
-            }
-            {
-                let callback = callback.clone();
-                regexp_supported.connect_toggled(move |_| callback.borrow_mut()());
-            }
-            {
-                let callback = callback.clone();
-                replacement_entry.connect_changed(move |_| callback.borrow_mut()());
-            }
-            {
-                let callback = callback.clone();
-                case_insensitive.connect_toggled(move |_| callback.borrow_mut()());
-            }
-        }
+        let change_subject = self.change_subject.clone();
+        pattern_entry.connect_changed(move |_| {
+            change_subject.notify(()).unwrap_or_default();
+        });
+
+        let change_subject = self.change_subject.clone();
+        regexp_supported.connect_toggled(move |_| {
+            change_subject.notify(()).unwrap_or_default();
+        });
+
+        let change_subject = self.change_subject.clone();
+        replacement_entry.connect_changed(move |_| {
+            change_subject.notify(()).unwrap_or_default();
+        });
+
+        let change_subject = self.change_subject.clone();
+        case_insensitive.connect_toggled(move |_| {
+            change_subject.notify(()).unwrap_or_default();
+        });
     }
 
     fn get_replacement_rule(&self) -> Result<(Regex, String), Error> {
@@ -115,55 +120,88 @@ impl Renamer for ReplaceRenamer {
             files,
         ))
     }
+
+    fn attach_change(&self, observer: Rc<dyn Observer<(), Error>>) {
+        self.change_subject.attach(observer);
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use glib::bitflags::_core::sync::atomic::Ordering::SeqCst;
     use gtk::WindowBuilder;
+    use std::cell::RefCell;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
+
+    struct CounterObserver {
+        count: Rc<RefCell<AtomicUsize>>,
+    }
+
+    impl CounterObserver {
+        fn new() -> Self {
+            Self {
+                count: Rc::new(RefCell::new(AtomicUsize::new(0))),
+            }
+        }
+
+        fn reset(&self) {
+            let count = self.count.borrow_mut();
+            count.store(0, Ordering::SeqCst);
+        }
+
+        fn count(&self) -> usize {
+            let count = self.count.borrow();
+            count.load(Ordering::SeqCst)
+        }
+    }
+
+    impl Observer<(), Error> for CounterObserver {
+        fn update(&self, arg: &()) -> Result<(), Error> {
+            let count = self.count.borrow_mut();
+            count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
 
     #[test]
     fn test_replace_renamer_callback() {
         gtk::init().unwrap();
-        let counter = Arc::new(AtomicUsize::new(0));
-        let replace_renamer = {
-            let counter = counter.clone();
-            ReplaceRenamer::new(Some(Rc::new(RefCell::new(move || {
-                counter.fetch_add(1, Ordering::SeqCst);
-            }))))
-        };
+        let counter_observer = Rc::new(CounterObserver::new());
+        let replace_renamer = ReplaceRenamer::new();
         let pattern_entry = replace_renamer.get_object::<Entry>(ID_PATTERN_ENTRY);
         let regexp_supported = replace_renamer.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
         let replacement_entry = replace_renamer.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
         let case_insensitive = replace_renamer.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+
+        replace_renamer.attach_change(counter_observer.clone());
 
         WindowBuilder::new()
             .child(&replace_renamer.get_panel())
             .build()
             .show_all();
 
-        counter.store(0, SeqCst);
+        counter_observer.reset();
         gtk_test::enter_keys(&pattern_entry, "from");
-        assert_eq!(counter.load(Ordering::SeqCst), "from".len());
+        gtk_test::wait(1);
+        assert_eq!(counter_observer.count(), "from".len());
 
-        counter.store(0, SeqCst);
+        counter_observer.reset();
         gtk_test::click(&regexp_supported);
-        assert_eq!(counter.load(Ordering::SeqCst), 1);
+        gtk_test::wait(1);
+        assert_eq!(counter_observer.count(), 1);
         gtk_test::click(&regexp_supported);
-        assert_eq!(counter.load(Ordering::SeqCst), 2);
+        gtk_test::wait(1);
+        assert_eq!(counter_observer.count(), 2);
 
-        counter.store(0, SeqCst);
+        counter_observer.reset();
         gtk_test::enter_keys(&replacement_entry, "to");
-        assert_eq!(counter.load(Ordering::SeqCst), "to".len());
+        assert_eq!(counter_observer.count(), "to".len());
 
-        counter.store(0, SeqCst);
+        counter_observer.reset();
         gtk_test::click(&case_insensitive);
-        assert_eq!(counter.load(Ordering::SeqCst), 1);
+        assert_eq!(counter_observer.count(), 1);
         gtk_test::click(&case_insensitive);
-        assert_eq!(counter.load(Ordering::SeqCst), 2);
+        assert_eq!(counter_observer.count(), 2);
     }
 
     #[test]
@@ -192,7 +230,7 @@ mod test {
     #[test]
     fn test_replace_renamer_get_replacement_rule_and_apply_replacement() {
         gtk::init().unwrap();
-        let replace_renamer = ReplaceRenamer::new(None);
+        let replace_renamer = ReplaceRenamer::new();
         let pattern_entry = replace_renamer.get_object::<Entry>(ID_PATTERN_ENTRY);
         let regexp_supported = replace_renamer.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
         let replacement_entry = replace_renamer.get_object::<Entry>(ID_REPLACEMENT_ENTRY);

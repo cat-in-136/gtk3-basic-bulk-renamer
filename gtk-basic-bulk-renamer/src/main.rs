@@ -4,6 +4,7 @@ use gtk::{Application, WidgetExt};
 use std::env;
 
 mod error;
+mod observer;
 mod win;
 
 fn main() {

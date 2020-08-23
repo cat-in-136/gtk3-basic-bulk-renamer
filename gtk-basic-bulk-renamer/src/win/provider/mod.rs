@@ -1,10 +1,9 @@
 use crate::error::Error;
+use crate::observer::Observer;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec::IntoIter;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 mod replace_renamer;
@@ -17,6 +16,8 @@ pub(crate) trait Renamer {
         &self,
         files: &[(String, String)],
     ) -> Result<IntoIter<(String, String)>, Error>;
+    /// Add change listener
+    fn attach_change(&self, observer: Rc<dyn Observer<(), Error>>);
 }
 
 #[derive(Debug, Clone, Copy, EnumIter)]
@@ -38,8 +39,8 @@ pub(crate) struct Provider {
 }
 
 impl Provider {
-    pub fn new(callback: Option<Rc<RefCell<dyn Fn()>>>) -> Self {
-        let replace_renamer = ReplaceRenamer::new(callback);
+    pub fn new() -> Self {
+        let replace_renamer = ReplaceRenamer::new();
 
         Self { replace_renamer }
     }
@@ -55,11 +56,12 @@ impl Provider {
 mod test {
     use super::*;
     use gtk::prelude::*;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn test_provider() {
         gtk::init().unwrap();
-        let provider = Provider::new(None);
+        let provider = Provider::new();
 
         for renamer_type in RenamerType::iter() {
             let renamer = provider.renamer_of(renamer_type);
