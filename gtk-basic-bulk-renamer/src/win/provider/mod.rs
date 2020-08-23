@@ -45,6 +45,10 @@ impl Provider {
         Self { replace_renamer }
     }
 
+    pub fn attach_change(&self, observer: Rc<dyn Observer<(), Error>>) {
+        self.replace_renamer.attach_change(observer.clone());
+    }
+
     pub fn renamer_of(&self, renamer_type: RenamerType) -> Box<&dyn Renamer> {
         Box::new(match renamer_type {
             RenamerType::Replace => &self.replace_renamer,

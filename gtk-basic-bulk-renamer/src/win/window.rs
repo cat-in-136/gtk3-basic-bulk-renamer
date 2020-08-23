@@ -1,3 +1,6 @@
+use crate::error::Error;
+use crate::observer::Observer;
+use crate::utils::{list_store_data_iter, value2string};
 use crate::win::provider::{Provider, RenamerType};
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
@@ -31,13 +34,13 @@ macro_rules! generate_clones {
 
 pub(crate) struct Window {
     builder: Builder,
-    provider: Provider,
+    provider: Rc<Provider>,
 }
 
 impl Window {
     pub fn new<P: IsA<Application>>(app: Option<&P>) -> Self {
         let builder = Builder::from_string(include_str!("window.glade"));
-        let provider = Provider::new();
+        let provider = Rc::new(Provider::new());
         let window = Self { builder, provider };
 
         window.init_actions();
@@ -67,9 +70,15 @@ impl Window {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
 
+        let renamer_change_observer = Rc::new(RenamerChangeObserver {
+            builder: self.builder.clone(),
+            provider: self.provider.clone(),
+        });
+        self.provider.attach_change(renamer_change_observer.clone());
+
         let add_action = SimpleAction::new(ACTION_ADD, None);
         {
-            generate_clones!(main_window, file_list_store);
+            generate_clones!(main_window, file_list_store, renamer_change_observer);
             add_action.connect_activate(move |_, _| {
                 let dialog = FileChooserDialogBuilder::new()
                     .title("Add")
@@ -88,6 +97,7 @@ impl Window {
                 if result == ResponseType::Accept {
                     let paths = dialog.get_filenames();
                     Self::add_files_to(&file_list_store, &paths);
+                    renamer_change_observer.update(&()).unwrap(); // TODO unwrap
                 }
             });
         }
@@ -141,6 +151,7 @@ impl Window {
             generate_clones!(update_action_enabled);
             file_list_store.connect_row_deleted(move |_, _| update_action_enabled.borrow_mut()());
         }
+
         update_action_enabled.clone().borrow_mut()();
     }
 
@@ -178,6 +189,47 @@ impl Window {
 
     pub fn main_window(&self) -> ApplicationWindow {
         self.get_object(ID_MAIN_WINDOW)
+    }
+}
+
+struct RenamerChangeObserver {
+    builder: Builder,
+    provider: Rc<Provider>,
+}
+impl RenamerChangeObserver {
+    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.get_object(name).unwrap()
+    }
+}
+
+impl Observer<(), Error> for RenamerChangeObserver {
+    fn update(&self, arg: &()) -> Result<(), Error> {
+        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
+        let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
+        let provider = self.provider.clone();
+
+        let data = list_store_data_iter(&file_list_store)
+            .map(|row| (value2string(&row[0]), value2string(&row[2])))
+            .collect::<Vec<_>>();
+
+        if let (Some(renamer_type), Some(iter)) = (
+            notebook
+                .get_current_page()
+                .and_then(|v| RenamerType::iter().nth(v as usize)),
+            file_list_store.get_iter_first(),
+        ) {
+            provider
+                .renamer_of(renamer_type)
+                .apply_replacement(data.as_slice())
+                .and_then(|replacements| {
+                    for (new_file_name, _) in replacements {
+                        file_list_store.set(&iter, &[1], &[&new_file_name]);
+                        file_list_store.iter_next(&iter);
+                    }
+                    Ok(())
+                })?;
+        }
+        Ok(())
     }
 }
 
