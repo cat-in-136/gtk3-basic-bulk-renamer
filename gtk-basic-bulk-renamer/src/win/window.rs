@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::observer::Observer;
 use crate::utils::{list_store_data_iter, value2string};
 use crate::win::provider::{Provider, RenamerType};
+use basic_bulk_renamer::RenameMapPair;
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
 use gtk::{Application, LabelBuilder, Notebook, TreeView};
@@ -187,6 +188,20 @@ impl Window {
         Self::add_files_to(&file_list_store, paths);
     }
 
+    fn get_files(file_list_store: &ListStore) -> impl Iterator<Item = RenameMapPair> + '_ {
+        list_store_data_iter(file_list_store).map(|v| {
+            let name = value2string(&v[0]);
+            let new_name = value2string(&v[1]);
+            let parent = value2string(&v[2]);
+
+            let parent_name = PathBuf::from(parent);
+            let file_name = parent_name.join(name);
+            let new_file_name = parent_name.join(new_name);
+
+            (file_name, new_file_name)
+        })
+    }
+
     pub fn main_window(&self) -> ApplicationWindow {
         self.get_object(ID_MAIN_WINDOW)
     }
@@ -317,6 +332,62 @@ mod test {
         assert_eq!(
             file_list_store.get_value(&iter, 2).get(),
             Ok(Some(String::from("/")))
+        );
+    }
+
+    #[test]
+    fn test_get_files() {
+        gtk::init().unwrap();
+
+        let win = Window::new::<Application>(None);
+
+        // win.main_window().show_all();
+
+        let file_list_store = win.get_object::<ListStore>(ID_FILE_LIST_STORE);
+
+        assert_eq!(
+            Window::get_files(&file_list_store).collect::<Vec<_>>(),
+            vec![]
+        );
+
+        let iter = file_list_store.append();
+        file_list_store.set(
+            &iter,
+            &[0, 1, 2],
+            &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
+        );
+
+        assert_eq!(
+            Window::get_files(&file_list_store).collect::<Vec<_>>(),
+            vec![(
+                PathBuf::from("/").join("test"),
+                PathBuf::from("/").join("test2")
+            )]
+        );
+
+        let iter = file_list_store.append();
+        file_list_store.set(
+            &iter,
+            &[0, 1, 2],
+            &[
+                &"test3".to_string(),
+                &"test4".to_string(),
+                &"/tmp".to_string(),
+            ],
+        );
+
+        assert_eq!(
+            Window::get_files(&file_list_store).collect::<Vec<_>>(),
+            vec![
+                (
+                    PathBuf::from("/").join("test"),
+                    PathBuf::from("/").join("test2")
+                ),
+                (
+                    PathBuf::from("/tmp").join("test3"),
+                    PathBuf::from("/tmp").join("test4")
+                ),
+            ]
         );
     }
 }

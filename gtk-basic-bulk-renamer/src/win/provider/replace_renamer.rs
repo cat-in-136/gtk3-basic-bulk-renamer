@@ -129,8 +129,8 @@ impl Renamer for ReplaceRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use gtk::WindowBuilder;
     use crate::observer::test::CounterObserver;
+    use gtk::WindowBuilder;
 
     #[test]
     fn test_replace_renamer_callback() {

@@ -38,9 +38,9 @@ impl<T, E> SubjectImpl<T, E> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use core::sync::atomic::{AtomicUsize, Ordering};
     use super::*;
     use crate::error::Error;
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
     pub(crate) struct CounterObserver {
         count: Rc<RefCell<AtomicUsize>>,
@@ -85,5 +85,3 @@ pub(crate) mod test {
         assert_eq!(observer.count(), 1);
     }
 }
-
-
