@@ -83,7 +83,7 @@ impl Window {
             add_action.connect_activate(move |_, _| {
                 let dialog = FileChooserDialogBuilder::new()
                     .title("Add")
-                    .parent(&main_window)
+                    .application(&main_window.get_application().unwrap())
                     .select_multiple(true)
                     .mnemonics_visible(true)
                     .action(FileChooserAction::Open)
