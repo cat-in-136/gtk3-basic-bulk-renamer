@@ -109,6 +109,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="action_name">win.execute-action</property>
                 <property name="image">execute-image</property>
               </object>
               <packing>

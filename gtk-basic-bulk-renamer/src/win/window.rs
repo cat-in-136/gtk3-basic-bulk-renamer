@@ -2,10 +2,12 @@ use crate::error::Error;
 use crate::observer::Observer;
 use crate::utils::{list_store_data_iter, value2string};
 use crate::win::provider::{Provider, RenamerType};
-use basic_bulk_renamer::RenameMapPair;
+use basic_bulk_renamer::{BulkRename, RenameError, RenameMapPair, RenameOverwriteMode};
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
-use gtk::{Application, LabelBuilder, Notebook, TreeView};
+use gtk::{
+    Application, ButtonsType, LabelBuilder, MessageDialogBuilder, MessageType, Notebook, TreeView,
+};
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
 use std::cell::RefCell;
@@ -16,6 +18,7 @@ use strum::IntoEnumIterator;
 const ACTION_ADD: &'static str = "add-action";
 const ACTION_REMOVE: &'static str = "remove-action";
 const ACTION_CLEAR: &'static str = "clear-action";
+const ACTION_EXECUTE: &'static str = "execute-action";
 
 const ID_ADD_BUTTON: &'static str = "add-button";
 const ID_CLEAR_BUTTON: &'static str = "clear-button";
@@ -123,6 +126,56 @@ impl Window {
             });
         }
         main_window.add_action(&clear_action);
+
+        let execute_action = SimpleAction::new(ACTION_EXECUTE, None);
+        {
+            generate_clones!(main_window, file_list_store, renamer_change_observer);
+            execute_action.connect_activate(move |_, _| {
+                let files = Self::get_files(&file_list_store).collect::<Vec<_>>();
+                let mut renamer = BulkRename::new(files.clone());
+                renamer
+                    .execute(RenameOverwriteMode::Error)
+                    .and_then(|_| {
+                        let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
+                        file_list_store.clear();
+                        Self::add_files_to(&file_list_store, &new_files);
+                        renamer_change_observer.update(&()).unwrap(); // TODO unwrap
+                        Ok(())
+                    })
+                    .or_else(|e| {
+                        let undo_error = renamer
+                            .undo_bulk_rename()
+                            .ok_or(RenameError::IllegalOperation)
+                            .and_then(|mut undo_renamer| {
+                                undo_renamer.execute(RenameOverwriteMode::Error)
+                            });
+                        let detailed_message = format!(
+                            "{}\n{}",
+                            e.to_string(),
+                            match undo_error {
+                                Ok(_) => "Rename is not applied".to_string(),
+                                Err(undo_rename_error) => format!(
+                                    "Rename is interrupted: {}",
+                                    undo_rename_error.to_string()
+                                ),
+                            }
+                        );
+
+                        let dialog = MessageDialogBuilder::new()
+                            .application(&main_window.get_application().unwrap())
+                            .buttons(ButtonsType::Ok)
+                            .message_type(MessageType::Error)
+                            .text("Failed to rename")
+                            .secondary_text(detailed_message.as_str())
+                            .build();
+                        dialog.run();
+                        dialog.close();
+                        Err(())
+                    })
+                    .unwrap_or_default();
+            });
+        }
+        main_window.add_action(&execute_action);
     }
 
     fn init_signals(&self) {
