@@ -2,6 +2,7 @@ use gtk::prelude::IsA;
 use gtk::{Application, ApplicationWindow};
 use std::path::PathBuf;
 
+mod file_list;
 mod provider;
 mod window;
 

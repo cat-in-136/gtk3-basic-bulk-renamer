@@ -1,8 +1,11 @@
 use crate::error::Error;
 use crate::observer::Observer;
-use crate::utils::{list_store_data_iter, value2string};
+use crate::win::file_list::{
+    add_files_to_file_list, apply_renamer_to_file_list, get_files_from_file_list,
+    set_files_to_file_list,
+};
 use crate::win::provider::{Provider, RenamerType};
-use basic_bulk_renamer::{BulkRename, RenameError, RenameMapPair, RenameOverwriteMode};
+use basic_bulk_renamer::{BulkRename, RenameError, RenameOverwriteMode};
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
 use gtk::{
@@ -100,7 +103,7 @@ impl Window {
 
                 if result == ResponseType::Accept {
                     let paths = dialog.get_filenames();
-                    Self::add_files_to(&file_list_store, &paths);
+                    add_files_to_file_list(&file_list_store, &paths);
                     renamer_change_observer.update(&()).unwrap(); // TODO unwrap
                 }
             });
@@ -131,14 +134,14 @@ impl Window {
         {
             generate_clones!(main_window, file_list_store, renamer_change_observer);
             execute_action.connect_activate(move |_, _| {
-                let files = Self::get_files(&file_list_store).collect::<Vec<_>>();
+                let files = get_files_from_file_list(&file_list_store).collect::<Vec<_>>();
                 let mut renamer = BulkRename::new(files.clone());
                 renamer
                     .execute(RenameOverwriteMode::Error)
                     .and_then(|_| {
                         let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
                         file_list_store.clear();
-                        Self::add_files_to(&file_list_store, &new_files);
+                        add_files_to_file_list(&file_list_store, &new_files);
                         renamer_change_observer.update(&()).unwrap(); // TODO unwrap
                         Ok(())
                     })
@@ -219,40 +222,9 @@ impl Window {
         }
     }
 
-    fn add_files_to(file_list_store: &ListStore, paths: &[PathBuf]) {
-        for path in paths.iter() {
-            let name = path
-                .file_name()
-                .unwrap_or_default()
-                .to_str()
-                .unwrap_or_default()
-                .to_string();
-            let new_name = name.clone();
-            let parent = path.parent().unwrap().display().to_string();
-
-            let iter = file_list_store.append();
-            file_list_store.set(&iter, &[0, 1, 2], &[&name, &new_name, &parent]);
-        }
-    }
-
     pub fn set_files(&self, paths: &[PathBuf]) {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
-        file_list_store.clear();
-        Self::add_files_to(&file_list_store, paths);
-    }
-
-    fn get_files(file_list_store: &ListStore) -> impl Iterator<Item = RenameMapPair> + '_ {
-        list_store_data_iter(file_list_store).map(|v| {
-            let name = value2string(&v[0]);
-            let new_name = value2string(&v[1]);
-            let parent = value2string(&v[2]);
-
-            let parent_name = PathBuf::from(parent);
-            let file_name = parent_name.join(name);
-            let new_file_name = parent_name.join(new_name);
-
-            (file_name, new_file_name)
-        })
+        set_files_to_file_list(&file_list_store, paths);
     }
 
     pub fn main_window(&self) -> ApplicationWindow {
@@ -271,33 +243,19 @@ impl RenamerChangeObserver {
 }
 
 impl Observer<(), Error> for RenamerChangeObserver {
-    fn update(&self, arg: &()) -> Result<(), Error> {
+    fn update(&self, _arg: &()) -> Result<(), Error> {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
         let provider = self.provider.clone();
-
-        let data = list_store_data_iter(&file_list_store)
-            .map(|row| (value2string(&row[0]), value2string(&row[2])))
-            .collect::<Vec<_>>();
-
-        if let (Some(renamer_type), Some(iter)) = (
-            notebook
-                .get_current_page()
-                .and_then(|v| RenamerType::iter().nth(v as usize)),
-            file_list_store.get_iter_first(),
-        ) {
-            provider
-                .renamer_of(renamer_type)
-                .apply_replacement(data.as_slice())
-                .and_then(|replacements| {
-                    for (new_file_name, _) in replacements {
-                        file_list_store.set(&iter, &[1], &[&new_file_name]);
-                        file_list_store.iter_next(&iter);
-                    }
-                    Ok(())
-                })?;
+        if let Some(renamer) = notebook
+            .get_current_page()
+            .and_then(|v| RenamerType::iter().nth(v as usize))
+            .and_then(|v| Some(provider.renamer_of(v)))
+        {
+            apply_renamer_to_file_list(&file_list_store, renamer)
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 }
 
@@ -345,102 +303,5 @@ mod test {
         assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
         assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), true);
         assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
-    }
-
-    #[test]
-    fn test_set_files() {
-        gtk::init().unwrap();
-
-        let win = Window::new::<Application>(None);
-        // win.main_window().show_all();
-
-        let file_list_store = win.get_object::<ListStore>(ID_FILE_LIST_STORE);
-        assert_eq!(file_list_store.iter_n_children(None), 0);
-
-        win.set_files(&[PathBuf::from("test"), PathBuf::from("/test2")]);
-        assert_eq!(file_list_store.iter_n_children(None), 2);
-
-        let iter = file_list_store.iter_nth_child(None, 0).unwrap();
-        assert_eq!(
-            file_list_store.get_value(&iter, 0).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.get_value(&iter, 1).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.get_value(&iter, 2).get(),
-            Ok(Some(String::from("")))
-        );
-        let iter = file_list_store.iter_nth_child(None, 1).unwrap();
-        assert_eq!(
-            file_list_store.get_value(&iter, 0).get(),
-            Ok(Some(String::from("test2")))
-        );
-        assert_eq!(
-            file_list_store.get_value(&iter, 1).get(),
-            Ok(Some(String::from("test2")))
-        );
-        assert_eq!(
-            file_list_store.get_value(&iter, 2).get(),
-            Ok(Some(String::from("/")))
-        );
-    }
-
-    #[test]
-    fn test_get_files() {
-        gtk::init().unwrap();
-
-        let win = Window::new::<Application>(None);
-
-        // win.main_window().show_all();
-
-        let file_list_store = win.get_object::<ListStore>(ID_FILE_LIST_STORE);
-
-        assert_eq!(
-            Window::get_files(&file_list_store).collect::<Vec<_>>(),
-            vec![]
-        );
-
-        let iter = file_list_store.append();
-        file_list_store.set(
-            &iter,
-            &[0, 1, 2],
-            &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
-        );
-
-        assert_eq!(
-            Window::get_files(&file_list_store).collect::<Vec<_>>(),
-            vec![(
-                PathBuf::from("/").join("test"),
-                PathBuf::from("/").join("test2")
-            )]
-        );
-
-        let iter = file_list_store.append();
-        file_list_store.set(
-            &iter,
-            &[0, 1, 2],
-            &[
-                &"test3".to_string(),
-                &"test4".to_string(),
-                &"/tmp".to_string(),
-            ],
-        );
-
-        assert_eq!(
-            Window::get_files(&file_list_store).collect::<Vec<_>>(),
-            vec![
-                (
-                    PathBuf::from("/").join("test"),
-                    PathBuf::from("/").join("test2")
-                ),
-                (
-                    PathBuf::from("/tmp").join("test3"),
-                    PathBuf::from("/tmp").join("test4")
-                ),
-            ]
-        );
     }
 }

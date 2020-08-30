@@ -65,7 +65,7 @@ pub(crate) mod test {
     }
 
     impl Observer<(), Error> for CounterObserver {
-        fn update(&self, arg: &()) -> Result<(), Error> {
+        fn update(&self, _arg: &()) -> Result<(), Error> {
             let count = self.count.borrow_mut();
             count.fetch_add(1, Ordering::SeqCst);
             Ok(())
