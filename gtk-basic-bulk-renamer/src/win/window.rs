@@ -1,15 +1,18 @@
 use crate::error::Error;
 use crate::observer::Observer;
+use crate::utils::get_path_from_selection_data;
 use crate::win::file_list::{
     add_files_to_file_list, apply_renamer_to_file_list, get_files_from_file_list,
     set_files_to_file_list,
 };
 use crate::win::provider::{Provider, RenamerType};
 use basic_bulk_renamer::{BulkRename, RenameError, RenameOverwriteMode};
+use gdk::DragAction;
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
 use gtk::{
-    Application, ButtonsType, LabelBuilder, MessageDialogBuilder, MessageType, Notebook, TreeView,
+    Application, ButtonsType, DestDefaults, LabelBuilder, MessageDialogBuilder, MessageType,
+    Notebook, TargetEntry, TargetFlags, TreeView,
 };
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
@@ -50,8 +53,7 @@ impl Window {
         let provider = Rc::new(Provider::new());
         let window = Self { builder, provider };
 
-        window.init_actions();
-        window.init_signals();
+        window.init_actions_signals();
         window.init_provider_panels();
 
         let main_window = window.main_window();
@@ -72,10 +74,11 @@ impl Window {
             .unwrap()
     }
 
-    fn init_actions(&self) {
+    fn init_actions_signals(&self) {
         let main_window = self.main_window();
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
-        let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
+        let file_list = self.get_object::<TreeView>(ID_FILE_LIST);
+        let selection = file_list.clone().get_selection();
 
         let renamer_change_observer = Rc::new(RenamerChangeObserver {
             builder: self.builder.clone(),
@@ -179,11 +182,6 @@ impl Window {
             });
         }
         main_window.add_action(&execute_action);
-    }
-
-    fn init_signals(&self) {
-        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
-        let selection = self.get_object::<TreeView>(ID_FILE_LIST).get_selection();
 
         let update_action_enabled = {
             generate_clones!(file_list_store, selection);
@@ -210,6 +208,23 @@ impl Window {
         }
 
         update_action_enabled.clone().borrow_mut()();
+
+        let dnd_target_entries = &[
+            TargetEntry::new("STRING", TargetFlags::empty(), 0),
+            TargetEntry::new("text/plain", TargetFlags::empty(), 0),
+            TargetEntry::new("text/uri-list", TargetFlags::empty(), 0),
+        ];
+        file_list.drag_dest_set(DestDefaults::ALL, dnd_target_entries, DragAction::COPY);
+        {
+            generate_clones!(renamer_change_observer);
+            file_list.connect_drag_data_received(
+                move |_file_list, _c, _x, _y, sel_data, _info, _time| {
+                    let paths = get_path_from_selection_data(&sel_data);
+                    add_files_to_file_list(&file_list_store, &paths);
+                    renamer_change_observer.update(&()).unwrap(); // TODO unwrap
+                },
+            );
+        }
     }
 
     fn init_provider_panels(&self) {
@@ -265,7 +280,7 @@ mod test {
     use gio::ActionExt;
 
     #[test]
-    fn test_init_signals() {
+    fn test_init_actions_signals() {
         gtk::init().unwrap();
 
         let win = Window::new::<Application>(None);

@@ -1,7 +1,8 @@
-use glib::Value;
+use glib::{filename_from_uri, Value};
 use gtk::prelude::*;
-use gtk::ListStore;
+use gtk::{ListStore, SelectionData};
 use std::iter;
+use std::path::PathBuf;
 
 pub fn value2string(value: &Value) -> String {
     value
@@ -32,11 +33,40 @@ pub fn list_store_data_iter(model: &ListStore) -> impl Iterator<Item = Vec<Value
     .map(|v| v.unwrap())
 }
 
+pub(crate) fn get_path_from_selection_data(sel_data: &SelectionData) -> Vec<PathBuf> {
+    if sel_data.targets_include_uri() {
+        sel_data
+            .get_uris()
+            .iter()
+            .filter_map(|v| {
+                filename_from_uri(v.as_str())
+                    .and_then(|(path, _hostname)| Ok(path))
+                    .ok()
+            })
+            .collect::<Vec<_>>()
+    } else if let Some(text) = sel_data.get_text() {
+        text.to_string()
+            .lines()
+            .filter_map(|v| {
+                if v.starts_with("file:") {
+                    filename_from_uri(v)
+                        .and_then(|(path, _hostname)| Ok(path))
+                        .ok()
+                } else {
+                    Some(PathBuf::from(v))
+                }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use glib::Type;
-    use gtk::{GtkListStoreExt, ListStore};
+    use gtk::{Clipboard, GtkListStoreExt, ListStore};
 
     #[test]
     fn test_value2string() {
@@ -69,6 +99,24 @@ mod test {
                 vec![Ok(Some("0".to_string())), Ok(Some("dummy".to_string()))],
                 vec![Ok(Some("1".to_string())), Ok(Some("dummy".to_string()))],
                 vec![Ok(Some("2".to_string())), Ok(Some("dummy".to_string()))],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_get_path_from_selection_data() {
+        gtk::init().unwrap();
+
+        let clipboard = Clipboard::get(&gdk::SELECTION_CLIPBOARD);
+        clipboard.clear();
+        clipboard.set_text("file:///tmp/test\n/home/test/foobar");
+
+        let selection = clipboard.wait_for_contents(&gdk::TARGET_STRING).unwrap();
+        assert_eq!(
+            get_path_from_selection_data(&selection),
+            vec![
+                PathBuf::from("/tmp/test"),
+                PathBuf::from("/home/test/foobar")
             ]
         );
     }
