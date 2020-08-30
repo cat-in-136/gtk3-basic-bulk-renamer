@@ -184,12 +184,11 @@ impl Window {
         main_window.add_action(&execute_action);
 
         let update_action_enabled = {
-            generate_clones!(file_list_store, selection);
-            let remove_action = self.get_simple_action(ACTION_REMOVE);
-            let clear_action = self.get_simple_action(ACTION_CLEAR);
+            generate_clones!(file_list_store, selection, remove_action, clear_action, execute_action);
             Rc::new(RefCell::new(move || {
                 remove_action.set_enabled(selection.count_selected_rows() > 0);
                 clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
+                execute_action.set_enabled(file_list_store.iter_n_children(None) > 0);
             }))
         };
 
@@ -295,6 +294,7 @@ mod test {
         assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
         assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), false);
         assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), false);
+        assert_eq!(win.get_simple_action(ACTION_EXECUTE).get_enabled(), false);
 
         win.set_files(&[PathBuf::from("test")]);
         assert_eq!(
@@ -306,6 +306,7 @@ mod test {
         assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
         assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), false);
         assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
+        assert_eq!(win.get_simple_action(ACTION_EXECUTE).get_enabled(), true);
 
         gtk_test::click(&win.get_object::<TreeView>(ID_FILE_LIST));
         assert_eq!(
@@ -318,5 +319,6 @@ mod test {
         assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
         assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), true);
         assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
+        assert_eq!(win.get_simple_action(ACTION_EXECUTE).get_enabled(), true);
     }
 }
