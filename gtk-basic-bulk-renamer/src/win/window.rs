@@ -3,7 +3,7 @@ use crate::observer::Observer;
 use crate::utils::get_path_from_selection_data;
 use crate::win::file_list::{
     add_files_to_file_list, apply_renamer_to_file_list, get_files_from_file_list,
-    set_files_to_file_list,
+    reset_renaming_of_file_list, set_files_to_file_list,
 };
 use crate::win::provider::{Provider, RenamerType};
 use basic_bulk_renamer::{BulkRename, RenameError, RenameOverwriteMode};
@@ -107,7 +107,9 @@ impl Window {
                 if result == ResponseType::Accept {
                     let paths = dialog.get_filenames();
                     add_files_to_file_list(&file_list_store, &paths);
-                    renamer_change_observer.update(&()).unwrap(); // TODO unwrap
+                    renamer_change_observer.update(&()).unwrap_or_else(|_| {
+                        reset_renaming_of_file_list(&file_list_store);
+                    });
                 }
             });
         }
@@ -141,12 +143,12 @@ impl Window {
                 let mut renamer = BulkRename::new(files.clone());
                 renamer
                     .execute(RenameOverwriteMode::Error)
+                    .map_err(|e| Error::Rename(e))
                     .and_then(|_| {
                         let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
                         file_list_store.clear();
                         add_files_to_file_list(&file_list_store, &new_files);
-                        renamer_change_observer.update(&()).unwrap(); // TODO unwrap
-                        Ok(())
+                        renamer_change_observer.update(&())
                     })
                     .or_else(|e| {
                         let undo_error = renamer
@@ -184,7 +186,13 @@ impl Window {
         main_window.add_action(&execute_action);
 
         let update_action_enabled = {
-            generate_clones!(file_list_store, selection, remove_action, clear_action, execute_action);
+            generate_clones!(
+                file_list_store,
+                selection,
+                remove_action,
+                clear_action,
+                execute_action
+            );
             Rc::new(RefCell::new(move || {
                 remove_action.set_enabled(selection.count_selected_rows() > 0);
                 clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
@@ -220,7 +228,9 @@ impl Window {
                 move |_file_list, _c, _x, _y, sel_data, _info, _time| {
                     let paths = get_path_from_selection_data(&sel_data);
                     add_files_to_file_list(&file_list_store, &paths);
-                    renamer_change_observer.update(&()).unwrap(); // TODO unwrap
+                    renamer_change_observer.update(&()).unwrap_or_else(|_| {
+                        reset_renaming_of_file_list(&file_list_store);
+                    });
                 },
             );
         }
@@ -268,6 +278,7 @@ impl Observer<(), Error> for RenamerChangeObserver {
         {
             apply_renamer_to_file_list(&file_list_store, renamer)
         } else {
+            reset_renaming_of_file_list(&file_list_store);
             Ok(())
         }
     }

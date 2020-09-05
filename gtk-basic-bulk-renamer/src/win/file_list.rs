@@ -43,6 +43,16 @@ pub(super) fn get_files_from_file_list(
     })
 }
 
+pub(super) fn reset_renaming_of_file_list(file_list_store: &ListStore) {
+    if let Some(iter) = file_list_store.get_iter_first() {
+        let name = file_list_store.get_value(&iter, 0);
+        let new_name = name.clone();
+        file_list_store.set_value(&iter, 1, &new_name);
+    } else {
+        // nothing to do if the model is empty
+    }
+}
+
 pub(super) fn apply_renamer_to_file_list(
     file_list_store: &ListStore,
     renamer: Box<&dyn Renamer>,
@@ -51,19 +61,23 @@ pub(super) fn apply_renamer_to_file_list(
         .map(|row| (value2string(&row[0]), value2string(&row[2])))
         .collect::<Vec<_>>();
 
-    if let Some(iter) = file_list_store.get_iter_first() {
-        renamer
-            .apply_replacement(data.as_slice())
-            .and_then(|replacements| {
+    renamer
+        .apply_replacement(data.as_slice())
+        .and_then(|replacements| {
+            if let Some(iter) = file_list_store.get_iter_first() {
                 for (new_file_name, _) in replacements {
                     file_list_store.set(&iter, &[1], &[&new_file_name]);
                     file_list_store.iter_next(&iter);
                 }
                 Ok(())
-            })
-    } else {
-        Ok(()) // TODO
-    }
+            } else {
+                Ok(()) // nothing to do if the model is empty
+            }
+        })
+        .or_else(|e| {
+            reset_renaming_of_file_list(&file_list_store);
+            Err(e)
+        })
 }
 
 #[cfg(test)]
@@ -205,6 +219,36 @@ mod test {
                     PathBuf::from("/tmp").join("test4")
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn test_reset_renaming_of_file_list() {
+        gtk::init().unwrap();
+
+        let file_list_store = list_store();
+
+        let iter = file_list_store.append();
+        file_list_store.set(
+            &iter,
+            &[0, 1, 2],
+            &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
+        );
+
+        reset_renaming_of_file_list(&file_list_store);
+
+        let iter = file_list_store.iter_nth_child(None, 0).unwrap();
+        assert_eq!(
+            file_list_store.get_value(&iter, 0).get(),
+            Ok(Some(String::from("test")))
+        );
+        assert_eq!(
+            file_list_store.get_value(&iter, 1).get(),
+            Ok(Some(String::from("test")))
+        );
+        assert_eq!(
+            file_list_store.get_value(&iter, 2).get(),
+            Ok(Some(String::from("/")))
         );
     }
 
