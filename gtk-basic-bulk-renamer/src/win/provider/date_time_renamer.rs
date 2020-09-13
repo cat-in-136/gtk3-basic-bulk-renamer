@@ -1,11 +1,13 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
+use crate::utils::strftime_local;
 use crate::win::provider::{Renamer, RenamerType};
-use chrono::Local;
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
 use std::convert::TryFrom;
+use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::SystemTime;
 use std::vec::IntoIter;
 
 const ID_DATE_TIME_RENAMER_PANEL: &'static str = "date-time-renamer-panel";
@@ -117,14 +119,32 @@ impl DateTimeRenamer {
         files
             .iter()
             .map(|(file_name, dir_name)| {
-                let time = Local::now(); // TODO
-                let time = time.format(pattern.as_str()).to_string();
+                let path = PathBuf::from(dir_name).join(file_name);
+                let time = match insert_time_kind {
+                    InsertTimeKind::Current => Ok(SystemTime::now()),
+                    InsertTimeKind::Accessed => {
+                        path.metadata().and_then(|metadata| metadata.accessed())
+                    }
+                    InsertTimeKind::Modified => {
+                        path.metadata().and_then(|metadata| metadata.modified())
+                    }
+                    InsertTimeKind::PictureToken => unimplemented!(),
+                };
+                let time = match time {
+                    Ok(time) => time,
+                    Err(_) => return (file_name.clone(), dir_name.clone()),
+                };
+
+                let time_str = match strftime_local(pattern.as_str(), time) {
+                    Ok(text) => text,
+                    Err(_) => return (file_name.clone(), dir_name.clone()),
+                };
 
                 let mut new_file_name = file_name.clone();
                 match position {
-                    InsertPosition::Front(pos) => new_file_name.insert_str(pos, &time),
+                    InsertPosition::Front(pos) => new_file_name.insert_str(pos, &time_str),
                     InsertPosition::Back(pos) => {
-                        new_file_name.insert_str(file_name.len() - pos, &time)
+                        new_file_name.insert_str(file_name.len() - pos, &time_str)
                     }
                 };
                 (new_file_name.to_string(), dir_name.clone())
@@ -165,7 +185,7 @@ impl Renamer for DateTimeRenamer {
 mod test {
     use super::*;
     use crate::observer::test::CounterObserver;
-    use gtk::{Adjustment, WindowBuilder};
+    use gtk::WindowBuilder;
     use regex::RegexBuilder;
 
     #[test]

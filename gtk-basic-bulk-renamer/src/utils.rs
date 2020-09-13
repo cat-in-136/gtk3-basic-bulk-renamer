@@ -3,6 +3,7 @@ use gtk::prelude::*;
 use gtk::{ListStore, SelectionData};
 use std::iter;
 use std::path::PathBuf;
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
 pub fn value2string(value: &Value) -> String {
     value
@@ -62,11 +63,22 @@ pub(crate) fn get_path_from_selection_data(sel_data: &SelectionData) -> Vec<Path
     }
 }
 
+pub(crate) fn strftime_local(format: &str, time: SystemTime) -> Result<String, SystemTimeError> {
+let epoch = if time > SystemTime::UNIX_EPOCH {
+        time.duration_since(UNIX_EPOCH).and_then(|v| Ok(v.as_secs() as i64))
+    } else {
+        UNIX_EPOCH.duration_since(time).and_then(|v| Ok(-(v.as_secs() as i64)))
+    };
+    Ok(libc_strftime::strftime_local(format, epoch?))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use glib::Type;
     use gtk::{Clipboard, GtkListStoreExt, ListStore};
+    use regex::RegexBuilder;
+    use glib::bitflags::_core::time::Duration;
 
     #[test]
     fn test_value2string() {
@@ -119,5 +131,22 @@ mod test {
                 PathBuf::from("/home/test/foobar")
             ]
         );
+    }
+
+    #[test]
+    fn test_strftime_local() {
+        let matcher = RegexBuilder::new("^\\d{4}-\\d{2}-\\d{2}-%-\\d{2}:\\d{2}:\\d{2}$").build().unwrap();
+
+        let now = SystemTime::now();
+        let text = strftime_local("%Y-%m-%d-%%-%H:%M:%S", now).unwrap();
+        assert!(matcher.is_match(text.as_str()));
+
+        let now = SystemTime::UNIX_EPOCH;
+        let text = strftime_local("%Y-%m-%d-%%-%H:%M:%S", now).unwrap();
+        assert!(matcher.is_match(text.as_str()));
+
+        let now = SystemTime::UNIX_EPOCH.checked_sub(Duration::from_secs(1)).unwrap();
+        let text = strftime_local("%Y-%m-%d-%%-%H:%M:%S", now).unwrap();
+        assert!(matcher.is_match(text.as_str()));
     }
 }
