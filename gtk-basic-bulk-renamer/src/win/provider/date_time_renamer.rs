@@ -1,10 +1,12 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
-use crate::utils::strftime_local;
+use crate::utils::UnixTime;
 use crate::win::provider::{Renamer, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
 use std::convert::TryFrom;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::SystemTime;
@@ -110,6 +112,47 @@ impl DateTimeRenamer {
         ))
     }
 
+    fn get_time_for_replacement(
+        insert_time_kind: InsertTimeKind,
+        path: PathBuf,
+    ) -> Option<UnixTime> {
+        match insert_time_kind {
+            InsertTimeKind::Current => Some(UnixTime::from(SystemTime::now())),
+            InsertTimeKind::Accessed => path
+                .metadata()
+                .and_then(|metadata| metadata.accessed())
+                .map(|v| UnixTime::from(v))
+                .ok(),
+            InsertTimeKind::Modified => path
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .map(|v| UnixTime::from(v))
+                .ok(),
+            InsertTimeKind::PictureToken => {
+                let exif = File::open(path).and_then(|file| {
+                    let mut reader = BufReader::new(&file);
+                    Ok(exif::Reader::new().read_from_container(&mut reader))
+                });
+
+                if let Ok(Ok(exif)) = exif {
+                    exif.get_field(exif::Tag::DateTime, exif::In::PRIMARY)
+                        .or_else(|| exif.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY))
+                        .or_else(|| exif.get_field(exif::Tag::DateTimeDigitized, exif::In::PRIMARY))
+                        .and_then(|v| match v.value {
+                            exif::Value::Ascii(ref vec) if !vec.is_empty() => {
+                                exif::DateTime::from_ascii(&vec[0])
+                                    .map(|v| UnixTime::from(v))
+                                    .ok()
+                            }
+                            _ => None,
+                        })
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
     fn apply_replace_with(
         insert_time_kind: InsertTimeKind,
         pattern: String,
@@ -120,34 +163,20 @@ impl DateTimeRenamer {
             .iter()
             .map(|(file_name, dir_name)| {
                 let path = PathBuf::from(dir_name).join(file_name);
-                let time = match insert_time_kind {
-                    InsertTimeKind::Current => Ok(SystemTime::now()),
-                    InsertTimeKind::Accessed => {
-                        path.metadata().and_then(|metadata| metadata.accessed())
-                    }
-                    InsertTimeKind::Modified => {
-                        path.metadata().and_then(|metadata| metadata.modified())
-                    }
-                    InsertTimeKind::PictureToken => unimplemented!(),
-                };
-                let time = match time {
-                    Ok(time) => time,
-                    Err(_) => return (file_name.clone(), dir_name.clone()),
-                };
+                let time = DateTimeRenamer::get_time_for_replacement(insert_time_kind, path);
 
-                let time_str = match strftime_local(pattern.as_str(), time) {
-                    Ok(text) => text,
-                    Err(_) => return (file_name.clone(), dir_name.clone()),
-                };
-
-                let mut new_file_name = file_name.clone();
-                match position {
-                    InsertPosition::Front(pos) => new_file_name.insert_str(pos, &time_str),
-                    InsertPosition::Back(pos) => {
-                        new_file_name.insert_str(file_name.len() - pos, &time_str)
-                    }
-                };
-                (new_file_name.to_string(), dir_name.clone())
+                if let Some(time_str) = time.and_then(|v| v.format(pattern.as_str())) {
+                    let mut new_file_name = file_name.clone();
+                    match position {
+                        InsertPosition::Front(pos) => new_file_name.insert_str(pos, &time_str),
+                        InsertPosition::Back(pos) => {
+                            new_file_name.insert_str(file_name.len() - pos, &time_str)
+                        }
+                    };
+                    (new_file_name.to_string(), dir_name.clone())
+                } else {
+                    (file_name.to_string(), dir_name.clone())
+                }
             })
             .collect::<Vec<_>>()
             .into_iter()
@@ -187,6 +216,7 @@ mod test {
     use crate::observer::test::CounterObserver;
     use gtk::WindowBuilder;
     use regex::RegexBuilder;
+    use std::io::{BufWriter, Write};
 
     #[test]
     fn test_replace_renamer_callback() {
@@ -233,21 +263,116 @@ mod test {
 
     #[test]
     fn test_apply_replace_with() {
+        #[rustfmt::skip]
+            let sample_data: [u8; 345] = [
+            0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+            0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xe1, 0x00, 0xb8,
+            0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x4d, 0x4d, 0x00, 0x2a, 0x00, 0x00,
+            0x00, 0x08, 0x00, 0x05, 0x01, 0x1a, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x4a, 0x01, 0x1b, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x52, 0x01, 0x28, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x01, 0x00, 0x00, 0x02, 0x13, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x01, 0x00, 0x00, 0x87, 0x69, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x05, 0x90, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x04, 0x30, 0x32,
+            0x33, 0x32, 0x90, 0x03, 0x00, 0x02, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
+            0x00, 0x9c, 0x91, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, 0x04, 0x01, 0x02,
+            0x03, 0x00, 0xa0, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x04, 0x30, 0x31,
+            0x30, 0x30, 0xa0, 0x01, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x30, 0x30, 0x39, 0x3a, 0x30,
+            0x32, 0x3a, 0x31, 0x33, 0x20, 0x32, 0x33, 0x3a, 0x33, 0x31, 0x3a, 0x33,
+            0x30, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
+            0xff, 0xc4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xff, 0xc4,
+            0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xda, 0x00, 0x08,
+            0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0x37, 0xff, 0xd9,
+        ];
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let jpg_file_path = PathBuf::from(temp_dir.path()).join("test.jpg");
+        {
+            let mut writer = BufWriter::new(File::create(jpg_file_path).unwrap());
+            writer.write(&sample_data).unwrap();
+        }
+        let jpg_file_pair = (
+            "test.jpg".to_string(),
+            temp_dir.path().to_str().unwrap().to_string(),
+        );
+
         let replacement = DateTimeRenamer::apply_replace_with(
             InsertTimeKind::Current,
             "%Y-%m-%d-%H-%M-%S".to_string(),
             InsertPosition::Front(1),
-            &[("foobar".to_string(), "/tmp".to_string())],
+            &[jpg_file_pair.clone()],
         )
         .collect::<Vec<_>>();
 
         assert_eq!(replacement.len(), 1);
         assert!(
-            RegexBuilder::new("^f\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}oobar$")
+            RegexBuilder::new("^t\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}est.jpg")
                 .build()
                 .unwrap()
                 .is_match(replacement[0].0.as_str())
         );
-        assert_eq!("/tmp", replacement[0].1.as_str());
+        assert_eq!(jpg_file_pair.1, replacement[0].1);
+
+        let replacement = DateTimeRenamer::apply_replace_with(
+            InsertTimeKind::Accessed,
+            "%Y-%m-%d-%H-%M-%S".to_string(),
+            InsertPosition::Back(4),
+            &[jpg_file_pair.clone()],
+        )
+        .collect::<Vec<_>>();
+
+        assert_eq!(replacement.len(), 1);
+        assert!(
+            RegexBuilder::new("^test\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}.jpg")
+                .build()
+                .unwrap()
+                .is_match(replacement[0].0.as_str())
+        );
+        assert_eq!(jpg_file_pair.1, replacement[0].1);
+
+        let replacement = DateTimeRenamer::apply_replace_with(
+            InsertTimeKind::Modified,
+            "%Y-%m-%d-%H-%M-%S".to_string(),
+            InsertPosition::Front(0),
+            &[jpg_file_pair.clone()],
+        )
+        .collect::<Vec<_>>();
+
+        assert_eq!(replacement.len(), 1);
+        assert!(
+            RegexBuilder::new("^\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}test.jpg")
+                .build()
+                .unwrap()
+                .is_match(replacement[0].0.as_str())
+        );
+        assert_eq!(jpg_file_pair.1, replacement[0].1);
+
+        let replacement = DateTimeRenamer::apply_replace_with(
+            InsertTimeKind::PictureToken,
+            "%Y-%m-%d-%H-%M-%S".to_string(),
+            InsertPosition::Front(0),
+            &[jpg_file_pair.clone()],
+        )
+        .collect::<Vec<_>>();
+
+        assert_eq!(replacement.len(), 1);
+        assert!(
+            RegexBuilder::new("^\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}test.jpg")
+                .build()
+                .unwrap()
+                .is_match(replacement[0].0.as_str())
+        );
+        assert_eq!(jpg_file_pair.1, replacement[0].1);
     }
 }
