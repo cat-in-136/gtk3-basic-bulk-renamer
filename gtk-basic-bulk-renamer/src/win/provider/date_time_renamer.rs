@@ -165,7 +165,7 @@ impl Renamer for DateTimeRenamer {
 mod test {
     use super::*;
     use crate::observer::test::CounterObserver;
-    use gtk::WindowBuilder;
+    use gtk::{Adjustment, WindowBuilder};
     use regex::RegexBuilder;
 
     #[test]
@@ -199,7 +199,11 @@ mod test {
         gtk_test::wait(1);
         assert_eq!(counter_observer.count(), "%Y-%d".len());
 
-        // TODO position
+        counter_observer.reset();
+        gtk_test::focus(&at_position_spin_button);
+        gtk_test::enter_key(&at_position_spin_button, gdk::keys::constants::uparrow);
+        gtk_test::wait(1);
+        assert_eq!(counter_observer.count(), 1);
 
         counter_observer.reset();
         at_position_combo_box.clone().set_active(Some(1));

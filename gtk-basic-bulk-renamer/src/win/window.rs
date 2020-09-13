@@ -117,7 +117,7 @@ impl Window {
                     let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
                     renamer_change_observer
                         .update(&(renamer_type))
-                        .unwrap_or_else(|a| {
+                        .unwrap_or_else(|_| {
                             reset_renaming_of_file_list(&file_list_store);
                         });
                 }
