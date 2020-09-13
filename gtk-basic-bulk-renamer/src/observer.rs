@@ -41,15 +41,18 @@ pub(crate) mod test {
     use super::*;
     use crate::error::Error;
     use core::sync::atomic::{AtomicUsize, Ordering};
+    use std::marker::PhantomData;
 
-    pub(crate) struct CounterObserver {
+    pub(crate) struct CounterObserver<'a, T: 'a> {
         count: Rc<RefCell<AtomicUsize>>,
+        phantom: PhantomData<&'a T>,
     }
 
-    impl CounterObserver {
+    impl<T> CounterObserver<'_, T> {
         pub(crate) fn new() -> Self {
             Self {
                 count: Rc::new(RefCell::new(AtomicUsize::new(0))),
+                phantom: Default::default(),
             }
         }
 
@@ -64,8 +67,8 @@ pub(crate) mod test {
         }
     }
 
-    impl Observer<(), Error> for CounterObserver {
-        fn update(&self, _arg: &()) -> Result<(), Error> {
+    impl<T> Observer<T, Error> for CounterObserver<'_, T> {
+        fn update(&self, _arg: &T) -> Result<(), Error> {
             let count = self.count.borrow_mut();
             count.fetch_add(1, Ordering::SeqCst);
             Ok(())

@@ -84,6 +84,7 @@ pub(super) fn apply_renamer_to_file_list(
 mod test {
     use super::*;
     use crate::observer::Observer;
+    use crate::win::provider::RenamerType;
     use glib::Type;
     use gtk::Container;
     use std::rc::Rc;
@@ -124,7 +125,7 @@ mod test {
                 .into_iter())
         }
 
-        fn attach_change(&self, _observer: Rc<dyn Observer<(), Error>>) {
+        fn attach_change(&self, _observer: Rc<dyn Observer<(RenamerType), Error>>) {
             unimplemented!()
         }
     }

@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
-use crate::win::provider::Renamer;
+use crate::win::provider::{Renamer, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry, EntryIconPosition};
 use regex::{Regex, RegexBuilder};
@@ -22,7 +22,7 @@ macro_rules! generate_clones {
 
 pub struct ReplaceRenamer {
     builder: Builder,
-    change_subject: Rc<SubjectImpl<(), Error>>,
+    change_subject: Rc<SubjectImpl<(RenamerType), Error>>,
 }
 
 impl ReplaceRenamer {
@@ -74,7 +74,9 @@ impl ReplaceRenamer {
             let change_subject = self.change_subject.clone();
             pattern_entry.connect_changed(move |_| {
                 check_regexp.borrow_mut()();
-                change_subject.notify(()).unwrap_or_default();
+                change_subject
+                    .notify((RenamerType::Replace))
+                    .unwrap_or_default();
             });
         }
 
@@ -83,7 +85,9 @@ impl ReplaceRenamer {
             let change_subject = self.change_subject.clone();
             regexp_supported.connect_toggled(move |_| {
                 check_regexp.borrow_mut()();
-                change_subject.notify(()).unwrap_or_default();
+                change_subject
+                    .notify((RenamerType::Replace))
+                    .unwrap_or_default();
             });
         }
 
@@ -92,7 +96,9 @@ impl ReplaceRenamer {
             let change_subject = self.change_subject.clone();
             replacement_entry.connect_changed(move |_| {
                 check_regexp.borrow_mut()();
-                change_subject.notify(()).unwrap_or_default();
+                change_subject
+                    .notify((RenamerType::Replace))
+                    .unwrap_or_default();
             });
         }
 
@@ -101,7 +107,9 @@ impl ReplaceRenamer {
             let change_subject = self.change_subject.clone();
             case_insensitive.connect_toggled(move |_| {
                 check_regexp.borrow_mut()();
-                change_subject.notify(()).unwrap_or_default();
+                change_subject
+                    .notify((RenamerType::Replace))
+                    .unwrap_or_default();
             });
         }
     }
@@ -168,7 +176,7 @@ impl Renamer for ReplaceRenamer {
         ))
     }
 
-    fn attach_change(&self, observer: Rc<dyn Observer<(), Error>>) {
+    fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>) {
         self.change_subject.attach(observer);
     }
 }

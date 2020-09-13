@@ -1,11 +1,13 @@
 use crate::error::Error;
 use crate::observer::Observer;
+use crate::win::provider::date_time_renamer::DateTimeRenamer;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
 use std::rc::Rc;
 use std::vec::IntoIter;
 use strum_macros::EnumIter;
 
+mod date_time_renamer;
 mod replace_renamer;
 
 pub(crate) trait Renamer {
@@ -17,41 +19,47 @@ pub(crate) trait Renamer {
         files: &[(String, String)],
     ) -> Result<IntoIter<(String, String)>, Error>;
     /// Add change listener
-    fn attach_change(&self, observer: Rc<dyn Observer<(), Error>>);
+    fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>);
 }
 
 #[derive(Debug, Clone, Copy, EnumIter)]
 #[repr(C)]
 pub(crate) enum RenamerType {
     Replace = 0,
+    DateTime = 1,
 }
 
 impl RenamerType {
     pub fn label(&self) -> &'static str {
         match self {
             RenamerType::Replace => "Search & Replace",
+            RenamerType::DateTime => "Insert Date/Time",
         }
     }
 }
 
 pub(crate) struct Provider {
     replace_renamer: ReplaceRenamer,
+    date_time_renamer: DateTimeRenamer,
 }
 
 impl Provider {
     pub fn new() -> Self {
-        let replace_renamer = ReplaceRenamer::new();
-
-        Self { replace_renamer }
+        Self {
+            replace_renamer: ReplaceRenamer::new(),
+            date_time_renamer: DateTimeRenamer::new(),
+        }
     }
 
-    pub fn attach_change(&self, observer: Rc<dyn Observer<(), Error>>) {
+    pub fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>) {
         self.replace_renamer.attach_change(observer.clone());
+        self.date_time_renamer.attach_change(observer.clone());
     }
 
     pub fn renamer_of(&self, renamer_type: RenamerType) -> Box<&dyn Renamer> {
         Box::new(match renamer_type {
             RenamerType::Replace => &self.replace_renamer,
+            RenamerType::DateTime => &self.date_time_renamer,
         })
     }
 }

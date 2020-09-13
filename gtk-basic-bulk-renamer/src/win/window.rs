@@ -79,6 +79,7 @@ impl Window {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let file_list = self.get_object::<TreeView>(ID_FILE_LIST);
         let selection = file_list.clone().get_selection();
+        let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
 
         let renamer_change_observer = Rc::new(RenamerChangeObserver {
             builder: self.builder.clone(),
@@ -88,7 +89,12 @@ impl Window {
 
         let add_action = SimpleAction::new(ACTION_ADD, None);
         {
-            generate_clones!(main_window, file_list_store, renamer_change_observer);
+            generate_clones!(
+                main_window,
+                file_list_store,
+                notebook,
+                renamer_change_observer
+            );
             add_action.connect_activate(move |_, _| {
                 let dialog = FileChooserDialogBuilder::new()
                     .title("Add")
@@ -107,9 +113,13 @@ impl Window {
                 if result == ResponseType::Accept {
                     let paths = dialog.get_filenames();
                     add_files_to_file_list(&file_list_store, &paths);
-                    renamer_change_observer.update(&()).unwrap_or_else(|_| {
-                        reset_renaming_of_file_list(&file_list_store);
-                    });
+
+                    let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
+                    renamer_change_observer
+                        .update(&(renamer_type))
+                        .unwrap_or_else(|a| {
+                            reset_renaming_of_file_list(&file_list_store);
+                        });
                 }
             });
         }
@@ -137,7 +147,12 @@ impl Window {
 
         let execute_action = SimpleAction::new(ACTION_EXECUTE, None);
         {
-            generate_clones!(main_window, file_list_store, renamer_change_observer);
+            generate_clones!(
+                main_window,
+                file_list_store,
+                notebook,
+                renamer_change_observer
+            );
             execute_action.connect_activate(move |_, _| {
                 let files = get_files_from_file_list(&file_list_store).collect::<Vec<_>>();
                 let mut renamer = BulkRename::new(files.clone());
@@ -148,7 +163,8 @@ impl Window {
                         let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
                         file_list_store.clear();
                         add_files_to_file_list(&file_list_store, &new_files);
-                        renamer_change_observer.update(&())
+                        let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
+                        renamer_change_observer.update(&(renamer_type))
                     })
                     .or_else(|e| {
                         let undo_error = renamer
@@ -213,8 +229,21 @@ impl Window {
             generate_clones!(update_action_enabled);
             file_list_store.connect_row_deleted(move |_, _| update_action_enabled.borrow_mut()());
         }
-
         update_action_enabled.clone().borrow_mut()();
+
+        {
+            generate_clones!(file_list_store, notebook, renamer_change_observer);
+            notebook.connect_switch_page(move |_, _, page_id| {
+                let renamer_type = RenamerType::iter()
+                    .nth(page_id as usize)
+                    .unwrap_or(RenamerType::Replace);
+                renamer_change_observer
+                    .update(&(renamer_type))
+                    .unwrap_or_else(|_| {
+                        reset_renaming_of_file_list(&file_list_store);
+                    });
+            });
+        }
 
         let dnd_target_entries = &[
             TargetEntry::new("STRING", TargetFlags::empty(), 0),
@@ -228,9 +257,12 @@ impl Window {
                 move |_file_list, _c, _x, _y, sel_data, _info, _time| {
                     let paths = get_path_from_selection_data(&sel_data);
                     add_files_to_file_list(&file_list_store, &paths);
-                    renamer_change_observer.update(&()).unwrap_or_else(|_| {
-                        reset_renaming_of_file_list(&file_list_store);
-                    });
+                    let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
+                    renamer_change_observer
+                        .update(&(renamer_type))
+                        .unwrap_or_else(|_| {
+                            reset_renaming_of_file_list(&file_list_store);
+                        });
                 },
             );
         }
@@ -254,6 +286,13 @@ impl Window {
     pub fn main_window(&self) -> ApplicationWindow {
         self.get_object(ID_MAIN_WINDOW)
     }
+
+    fn get_renamer_type_from_notebook(notebook: &Notebook) -> RenamerType {
+        notebook
+            .get_current_page()
+            .and_then(|v| RenamerType::iter().nth(v as usize))
+            .unwrap_or(RenamerType::Replace)
+    }
 }
 
 struct RenamerChangeObserver {
@@ -266,21 +305,13 @@ impl RenamerChangeObserver {
     }
 }
 
-impl Observer<(), Error> for RenamerChangeObserver {
-    fn update(&self, _arg: &()) -> Result<(), Error> {
+impl Observer<(RenamerType), Error> for RenamerChangeObserver {
+    fn update(&self, arg: &(RenamerType)) -> Result<(), Error> {
+        let renamer_type = *arg;
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
-        let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
         let provider = self.provider.clone();
-        if let Some(renamer) = notebook
-            .get_current_page()
-            .and_then(|v| RenamerType::iter().nth(v as usize))
-            .and_then(|v| Some(provider.renamer_of(v)))
-        {
-            apply_renamer_to_file_list(&file_list_store, renamer)
-        } else {
-            reset_renaming_of_file_list(&file_list_store);
-            Ok(())
-        }
+        let renamer = provider.renamer_of(renamer_type);
+        apply_renamer_to_file_list(&file_list_store, renamer)
     }
 }
 
