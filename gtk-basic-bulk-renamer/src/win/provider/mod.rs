@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::observer::Observer;
+use crate::win::file_list::RenamerTarget;
 use crate::win::provider::date_time_renamer::DateTimeRenamer;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
@@ -17,10 +18,13 @@ pub(crate) trait Renamer {
     fn apply_replacement(
         &self,
         files: &[(String, String)],
+        target: RenamerTarget,
     ) -> Result<IntoIter<(String, String)>, Error>;
     /// Add change listener
-    fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>);
+    fn attach_change(&self, observer: Rc<dyn Observer<RenamerObserverArg, Error>>);
 }
+
+pub(crate) type RenamerObserverArg = (RenamerType, ());
 
 #[derive(Debug, Clone, Copy, EnumIter)]
 #[repr(C)]
@@ -51,7 +55,7 @@ impl Provider {
         }
     }
 
-    pub fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>) {
+    pub fn attach_change(&self, observer: Rc<dyn Observer<RenamerObserverArg, Error>>) {
         self.replace_renamer.attach_change(observer.clone());
         self.date_time_renamer.attach_change(observer.clone());
     }

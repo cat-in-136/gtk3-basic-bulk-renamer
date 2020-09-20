@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
-use crate::win::provider::{Renamer, RenamerType};
+use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry, EntryIconPosition};
 use regex::{Regex, RegexBuilder};
@@ -22,7 +22,7 @@ macro_rules! generate_clones {
 
 pub struct ReplaceRenamer {
     builder: Builder,
-    change_subject: Rc<SubjectImpl<(RenamerType), Error>>,
+    change_subject: Rc<SubjectImpl<RenamerObserverArg, Error>>,
 }
 
 impl ReplaceRenamer {
@@ -75,7 +75,7 @@ impl ReplaceRenamer {
             pattern_entry.connect_changed(move |_| {
                 check_regexp.borrow_mut()();
                 change_subject
-                    .notify((RenamerType::Replace))
+                    .notify((RenamerType::Replace, ()))
                     .unwrap_or_default();
             });
         }
@@ -86,7 +86,7 @@ impl ReplaceRenamer {
             regexp_supported.connect_toggled(move |_| {
                 check_regexp.borrow_mut()();
                 change_subject
-                    .notify((RenamerType::Replace))
+                    .notify((RenamerType::Replace, ()))
                     .unwrap_or_default();
             });
         }
@@ -97,7 +97,7 @@ impl ReplaceRenamer {
             replacement_entry.connect_changed(move |_| {
                 check_regexp.borrow_mut()();
                 change_subject
-                    .notify((RenamerType::Replace))
+                    .notify((RenamerType::Replace, ()))
                     .unwrap_or_default();
             });
         }
@@ -108,7 +108,7 @@ impl ReplaceRenamer {
             case_insensitive.connect_toggled(move |_| {
                 check_regexp.borrow_mut()();
                 change_subject
-                    .notify((RenamerType::Replace))
+                    .notify((RenamerType::Replace, ()))
                     .unwrap_or_default();
             });
         }
@@ -143,11 +143,14 @@ impl ReplaceRenamer {
         matcher: &Regex,
         replacement: &str,
         files: &[(String, String)],
+        target: RenamerTarget,
     ) -> IntoIter<(String, String)> {
         files
             .iter()
             .map(|(file_name, dir_name)| {
-                let new_file_name = matcher.replace_all(file_name.as_str(), replacement);
+                let new_file_name = matcher
+                    .replace_all(file_name.as_str(), replacement)
+                    .to_string();
                 (new_file_name.to_string(), dir_name.clone())
             })
             .collect::<Vec<_>>()
@@ -167,16 +170,18 @@ impl Renamer for ReplaceRenamer {
     fn apply_replacement(
         &self,
         files: &[(String, String)],
+        target: RenamerTarget,
     ) -> Result<IntoIter<(String, String)>, Error> {
         let (matcher, replacement) = self.get_replacement_rule()?;
         Ok(Self::apply_replace_with(
             &matcher,
             replacement.as_str(),
             files,
+            target,
         ))
     }
 
-    fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>) {
+    fn attach_change(&self, observer: Rc<dyn Observer<RenamerObserverArg, Error>>) {
         self.change_subject.attach(observer);
     }
 }
@@ -240,7 +245,8 @@ mod test {
                     ("a_1.txt".to_string(), "/tmp".to_string()),
                     ("aa_2_a_3.txt".to_string(), "/home/foo".to_string()),
                     ("b_1".to_string(), "/home/foo".to_string()),
-                ]
+                ],
+                RenamerTarget::All,
             )
             .collect::<Vec<_>>(),
             vec![

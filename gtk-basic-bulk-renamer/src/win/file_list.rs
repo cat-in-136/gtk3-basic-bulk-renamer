@@ -6,6 +6,14 @@ use gtk::prelude::*;
 use gtk::ListStore;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub(crate) enum RenamerTarget {
+    Name = 0,
+    Suffix = 1,
+    All = 2,
+}
+
 pub(super) fn set_files_to_file_list(file_list_store: &ListStore, paths: &[PathBuf]) {
     file_list_store.clear();
     add_files_to_file_list(&file_list_store, paths);
@@ -55,6 +63,7 @@ pub(super) fn reset_renaming_of_file_list(file_list_store: &ListStore) {
 
 pub(super) fn apply_renamer_to_file_list(
     file_list_store: &ListStore,
+    target: RenamerTarget,
     renamer: Box<&dyn Renamer>,
 ) -> Result<(), Error> {
     let data = list_store_data_iter(&file_list_store)
@@ -62,7 +71,7 @@ pub(super) fn apply_renamer_to_file_list(
         .collect::<Vec<_>>();
 
     renamer
-        .apply_replacement(data.as_slice())
+        .apply_replacement(data.as_slice(), target)
         .and_then(|replacements| {
             if let Some(iter) = file_list_store.get_iter_first() {
                 for (new_file_name, _) in replacements {
@@ -84,7 +93,8 @@ pub(super) fn apply_renamer_to_file_list(
 mod test {
     use super::*;
     use crate::observer::Observer;
-    use crate::win::provider::RenamerType;
+    use crate::win::file_list::RenamerTarget;
+    use crate::win::provider::RenamerObserverArg;
     use glib::Type;
     use gtk::Container;
     use std::rc::Rc;
@@ -112,6 +122,7 @@ mod test {
         fn apply_replacement(
             &self,
             files: &[(String, String)],
+            target: RenamerTarget,
         ) -> Result<IntoIter<(String, String)>, Error> {
             Ok(files
                 .iter()
@@ -125,7 +136,7 @@ mod test {
                 .into_iter())
         }
 
-        fn attach_change(&self, _observer: Rc<dyn Observer<(RenamerType), Error>>) {
+        fn attach_change(&self, _observer: Rc<dyn Observer<RenamerObserverArg, Error>>) {
             unimplemented!()
         }
     }
@@ -263,7 +274,8 @@ mod test {
         };
         let test_renamer = test_renamer.into_boxed_dyn();
 
-        apply_renamer_to_file_list(&file_list_store, test_renamer.clone()).unwrap();
+        apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
+            .unwrap();
 
         let iter = file_list_store.append();
         file_list_store.set(
@@ -272,7 +284,8 @@ mod test {
             &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
         );
 
-        apply_renamer_to_file_list(&file_list_store, test_renamer.clone()).unwrap();
+        apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
+            .unwrap();
 
         let iter = file_list_store.iter_nth_child(None, 0).unwrap();
         assert_eq!(

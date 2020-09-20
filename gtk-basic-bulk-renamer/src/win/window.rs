@@ -3,16 +3,16 @@ use crate::observer::Observer;
 use crate::utils::get_path_from_selection_data;
 use crate::win::file_list::{
     add_files_to_file_list, apply_renamer_to_file_list, get_files_from_file_list,
-    reset_renaming_of_file_list, set_files_to_file_list,
+    reset_renaming_of_file_list, set_files_to_file_list, RenamerTarget,
 };
-use crate::win::provider::{Provider, RenamerType};
+use crate::win::provider::{Provider, RenamerObserverArg, RenamerType};
 use basic_bulk_renamer::{BulkRename, RenameError, RenameOverwriteMode};
 use gdk::DragAction;
 use gio::{ActionMapExt, SimpleAction};
 use gtk::prelude::*;
 use gtk::{
-    Application, ButtonsType, DestDefaults, LabelBuilder, MessageDialogBuilder, MessageType,
-    Notebook, TargetEntry, TargetFlags, TreeView,
+    Application, ButtonsType, ComboBoxText, DestDefaults, LabelBuilder, MessageDialogBuilder,
+    MessageType, Notebook, TargetEntry, TargetFlags, TreeView,
 };
 use gtk::{ApplicationWindow, Builder, GtkWindowExt};
 use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
@@ -34,6 +34,7 @@ const ID_FILE_LIST_STORE: &'static str = "file-list-store";
 const ID_HEADERBAR: &'static str = "headerbar";
 const ID_MAIN_WINDOW: &'static str = "main-window";
 const ID_NOTEBOOK: &'static str = "notebook";
+const ID_RENAME_TARGET_COMBO_BOX: &'static str = "rename-target-combo-box";
 const ID_REMOVE_BUTTON: &'static str = "remove-button";
 
 macro_rules! generate_clones {
@@ -116,7 +117,7 @@ impl Window {
 
                     let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
                     renamer_change_observer
-                        .update(&(renamer_type))
+                        .update(&(renamer_type, ()))
                         .unwrap_or_else(|_| {
                             reset_renaming_of_file_list(&file_list_store);
                         });
@@ -164,7 +165,7 @@ impl Window {
                         file_list_store.clear();
                         add_files_to_file_list(&file_list_store, &new_files);
                         let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
-                        renamer_change_observer.update(&(renamer_type))
+                        renamer_change_observer.update(&(renamer_type, ()))
                     })
                     .or_else(|e| {
                         let undo_error = renamer
@@ -238,7 +239,7 @@ impl Window {
                     .nth(page_id as usize)
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
-                    .update(&(renamer_type))
+                    .update(&(renamer_type, ()))
                     .unwrap_or_else(|_| {
                         reset_renaming_of_file_list(&file_list_store);
                     });
@@ -259,7 +260,7 @@ impl Window {
                     add_files_to_file_list(&file_list_store, &paths);
                     let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
                     renamer_change_observer
-                        .update(&(renamer_type))
+                        .update(&(renamer_type, ()))
                         .unwrap_or_else(|_| {
                             reset_renaming_of_file_list(&file_list_store);
                         });
@@ -305,13 +306,23 @@ impl RenamerChangeObserver {
     }
 }
 
-impl Observer<(RenamerType), Error> for RenamerChangeObserver {
-    fn update(&self, arg: &(RenamerType)) -> Result<(), Error> {
-        let renamer_type = *arg;
+impl Observer<RenamerObserverArg, Error> for RenamerChangeObserver {
+    fn update(&self, arg: &RenamerObserverArg) -> Result<(), Error> {
+        let (renamer_type, _) = *arg;
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let provider = self.provider.clone();
         let renamer = provider.renamer_of(renamer_type);
-        apply_renamer_to_file_list(&file_list_store, renamer)
+        let target = self
+            .get_object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX)
+            .get_active_id()
+            .and_then(|id| match id.as_str() {
+                "name" => Some(RenamerTarget::Name),
+                "suffix" => Some(RenamerTarget::Suffix),
+                "all" => Some(RenamerTarget::All),
+                _ => None,
+            })
+            .unwrap_or(RenamerTarget::All);
+        apply_renamer_to_file_list(&file_list_store, target, renamer)
     }
 }
 

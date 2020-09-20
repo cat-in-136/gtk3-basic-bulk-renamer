@@ -96,26 +96,53 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButtonBox">
-            <property name="visible">True</property>
+          <object class="GtkBox">
             <property name="can_focus">False</property>
-            <property name="margin_end">8</property>
-            <property name="margin_top">3</property>
-            <property name="margin_bottom">3</property>
-            <property name="layout_style">end</property>
             <child>
-              <object class="GtkButton" id="execute-button">
-                <property name="label">Rename</property>
+              <object class="GtkComboBoxText" id="rename-target-combo-box">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="action_name">win.execute-action</property>
-                <property name="image">execute-image</property>
+                <property name="can_focus">False</property>
+                <property name="active_id">name</property>
+                <items>
+                  <item id="name" translatable="yes">Name only</item>
+                  <item id="suffix" translatable="yes">Suffix only</item>
+                  <item id="all" translatable="yes">Name &amp; Suffix</item>
+                </items>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButtonBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="margin_end">8</property>
+                <property name="margin_top">3</property>
+                <property name="margin_bottom">3</property>
+                <property name="layout_style">end</property>
+                <child>
+                  <object class="GtkButton" id="execute-button">
+                    <property name="label">Rename</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="action_name">win.execute-action</property>
+                    <property name="image">execute-image</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>

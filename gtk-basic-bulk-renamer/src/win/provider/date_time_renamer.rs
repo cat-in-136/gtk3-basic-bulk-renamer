@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
 use crate::utils::UnixTime;
-use crate::win::provider::{Renamer, RenamerType};
+use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
 use std::convert::TryFrom;
@@ -34,7 +34,7 @@ enum InsertPosition {
 
 pub struct DateTimeRenamer {
     builder: Builder,
-    change_subject: Rc<SubjectImpl<(RenamerType), Error>>,
+    change_subject: Rc<SubjectImpl<RenamerObserverArg, Error>>,
 }
 
 impl DateTimeRenamer {
@@ -60,22 +60,30 @@ impl DateTimeRenamer {
 
         let change_subject = self.change_subject.clone();
         insert_time_combo_box.connect_changed(move |_| {
-            change_subject.notify((renamer_type)).unwrap_or_default();
+            change_subject
+                .notify((renamer_type, ()))
+                .unwrap_or_default();
         });
 
         let change_subject = self.change_subject.clone();
         format_entry.connect_changed(move |_| {
-            change_subject.notify((renamer_type)).unwrap_or_default();
+            change_subject
+                .notify((renamer_type, ()))
+                .unwrap_or_default();
         });
 
         let change_subject = self.change_subject.clone();
         at_position_spin_button.connect_value_changed(move |_| {
-            change_subject.notify((renamer_type)).unwrap_or_default();
+            change_subject
+                .notify((renamer_type, ()))
+                .unwrap_or_default();
         });
 
         let change_subject = self.change_subject.clone();
         at_position_combo_box.connect_changed(move |_| {
-            change_subject.notify((renamer_type)).unwrap_or_default();
+            change_subject
+                .notify((renamer_type, ()))
+                .unwrap_or_default();
         });
     }
 
@@ -158,6 +166,7 @@ impl DateTimeRenamer {
         pattern: String,
         position: InsertPosition,
         files: &[(String, String)],
+        target: RenamerTarget,
     ) -> IntoIter<(String, String)> {
         files
             .iter()
@@ -194,6 +203,7 @@ impl Renamer for DateTimeRenamer {
     fn apply_replacement(
         &self,
         files: &[(String, String)],
+        target: RenamerTarget,
     ) -> Result<IntoIter<(String, String)>, Error> {
         let (insert_time_kind, pattern, position) = self.get_replacement_rule().unwrap();
         Ok(Self::apply_replace_with(
@@ -201,10 +211,11 @@ impl Renamer for DateTimeRenamer {
             pattern,
             position,
             files,
+            target,
         ))
     }
 
-    fn attach_change(&self, observer: Rc<dyn Observer<(RenamerType), Error>>) {
+    fn attach_change(&self, observer: Rc<dyn Observer<RenamerObserverArg, Error>>) {
         self.change_subject.attach(observer);
     }
 }
@@ -311,6 +322,7 @@ mod test {
             "%Y-%m-%d-%H-%M-%S".to_string(),
             InsertPosition::Front(1),
             &[jpg_file_pair.clone()],
+            RenamerTarget::All,
         )
         .collect::<Vec<_>>();
 
@@ -328,6 +340,7 @@ mod test {
             "%Y-%m-%d-%H-%M-%S".to_string(),
             InsertPosition::Back(4),
             &[jpg_file_pair.clone()],
+            RenamerTarget::All,
         )
         .collect::<Vec<_>>();
 
@@ -345,6 +358,7 @@ mod test {
             "%Y-%m-%d-%H-%M-%S".to_string(),
             InsertPosition::Front(0),
             &[jpg_file_pair.clone()],
+            RenamerTarget::All,
         )
         .collect::<Vec<_>>();
 
@@ -362,6 +376,7 @@ mod test {
             "%Y-%m-%d-%H-%M-%S".to_string(),
             InsertPosition::Front(0),
             &[jpg_file_pair.clone()],
+            RenamerTarget::All,
         )
         .collect::<Vec<_>>();
 
