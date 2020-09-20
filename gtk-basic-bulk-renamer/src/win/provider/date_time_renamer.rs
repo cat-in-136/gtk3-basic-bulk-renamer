@@ -69,7 +69,7 @@ impl DateTimeRenamer {
         });
 
         let change_subject = self.change_subject.clone();
-        at_position_spin_button.connect_change_value(move |_, _| {
+        at_position_spin_button.connect_value_changed(move |_| {
             change_subject.notify((renamer_type)).unwrap_or_default();
         });
 
@@ -167,12 +167,11 @@ impl DateTimeRenamer {
 
                 if let Some(time_str) = time.and_then(|v| v.format(pattern.as_str())) {
                     let mut new_file_name = file_name.clone();
-                    match position {
-                        InsertPosition::Front(pos) => new_file_name.insert_str(pos, &time_str),
-                        InsertPosition::Back(pos) => {
-                            new_file_name.insert_str(file_name.len() - pos, &time_str)
-                        }
+                    let idx = match position {
+                        InsertPosition::Front(pos) => pos,
+                        InsertPosition::Back(pos) => file_name.len().checked_sub(pos).unwrap_or(0),
                     };
+                    new_file_name.insert_str(idx.min(new_file_name.len()), &time_str);
                     (new_file_name.to_string(), dir_name.clone())
                 } else {
                     (file_name.to_string(), dir_name.clone())
