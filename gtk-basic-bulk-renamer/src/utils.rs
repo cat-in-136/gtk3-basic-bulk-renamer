@@ -79,6 +79,24 @@ pub(crate) fn split_file_at_dot(file: &str) -> (&str, Option<&str>) {
     }
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum InsertPosition {
+    Front(usize),
+    Back(usize),
+}
+
+impl InsertPosition {
+    pub fn apply_to(self, text: &str, replacement: &str) -> String {
+        let idx = match self {
+            InsertPosition::Front(pos) => pos,
+            InsertPosition::Back(pos) => text.len().checked_sub(pos).unwrap_or(0),
+        };
+        let mut new_text = text.to_string();
+        new_text.insert_str(idx.min(text.len()), &replacement);
+        new_text
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct UnixTime(pub i64);
 
@@ -217,6 +235,21 @@ mod test {
             split_file_at_dot("file.name.txt"),
             ("file.name", Some("txt"))
         );
+    }
+
+    #[test]
+    fn test_insert_position() {
+        assert_eq!(InsertPosition::Front(0).apply_to("text", "INS"), "INStext");
+        assert_eq!(InsertPosition::Front(1).apply_to("text", "INS"), "tINSext");
+        assert_eq!(InsertPosition::Front(3).apply_to("text", "INS"), "texINSt");
+        assert_eq!(InsertPosition::Front(4).apply_to("text", "INS"), "textINS");
+        assert_eq!(InsertPosition::Front(5).apply_to("text", "INS"), "textINS");
+
+        assert_eq!(InsertPosition::Back(0).apply_to("text", "INS"), "textINS");
+        assert_eq!(InsertPosition::Back(1).apply_to("text", "INS"), "texINSt");
+        assert_eq!(InsertPosition::Back(3).apply_to("text", "INS"), "tINSext");
+        assert_eq!(InsertPosition::Back(4).apply_to("text", "INS"), "INStext");
+        assert_eq!(InsertPosition::Back(5).apply_to("text", "INS"), "INStext");
     }
 
     #[test]

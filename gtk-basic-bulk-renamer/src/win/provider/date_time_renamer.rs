@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
-use crate::utils::UnixTime;
+use crate::utils::{split_file_at_dot, InsertPosition, UnixTime};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
@@ -24,12 +24,6 @@ enum InsertTimeKind {
     Accessed,
     Modified,
     PictureToken,
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum InsertPosition {
-    Front(usize),
-    Back(usize),
 }
 
 pub struct DateTimeRenamer {
@@ -175,12 +169,27 @@ impl DateTimeRenamer {
                 let time = DateTimeRenamer::get_time_for_replacement(insert_time_kind, path);
 
                 if let Some(time_str) = time.and_then(|v| v.format(pattern.as_str())) {
-                    let mut new_file_name = file_name.clone();
-                    let idx = match position {
-                        InsertPosition::Front(pos) => pos,
-                        InsertPosition::Back(pos) => file_name.len().checked_sub(pos).unwrap_or(0),
+                    let new_file_name = match target {
+                        RenamerTarget::Name => {
+                            let (stem, extension) = split_file_at_dot(file_name.as_str());
+                            let new_stem = position.apply_to(stem, time_str.as_str());
+                            if let Some(suffix) = extension {
+                                [new_stem.as_str(), suffix].join(".").to_string()
+                            } else {
+                                new_stem
+                            }
+                        }
+                        RenamerTarget::Suffix => match split_file_at_dot(file_name.as_str()) {
+                            (stem, Some(suffix)) => {
+                                let new_suffix = position.apply_to(suffix, time_str.as_str());
+                                [stem, new_suffix.as_str()].join(".").to_string()
+                            }
+                            (stem, None) => stem.to_string(),
+                        },
+                        RenamerTarget::All => {
+                            position.apply_to(file_name.as_str(), time_str.as_str())
+                        }
                     };
-                    new_file_name.insert_str(idx.min(new_file_name.len()), &time_str);
                     (new_file_name.to_string(), dir_name.clone())
                 } else {
                     (file_name.to_string(), dir_name.clone())
@@ -224,6 +233,7 @@ impl Renamer for DateTimeRenamer {
 mod test {
     use super::*;
     use crate::observer::test::CounterObserver;
+    use crate::utils::InsertPosition;
     use gtk::WindowBuilder;
     use regex::RegexBuilder;
     use std::io::{BufWriter, Write};
