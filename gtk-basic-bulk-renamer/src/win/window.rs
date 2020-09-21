@@ -8,14 +8,14 @@ use crate::win::file_list::{
 use crate::win::provider::{Provider, RenamerObserverArg, RenamerType};
 use basic_bulk_renamer::{BulkRename, RenameError, RenameOverwriteMode};
 use gdk::DragAction;
-use gio::{ActionMapExt, SimpleAction};
+use gio::prelude::*;
+use gio::SimpleAction;
 use gtk::prelude::*;
 use gtk::{
-    Application, ButtonsType, ComboBoxText, DestDefaults, LabelBuilder, MessageDialogBuilder,
-    MessageType, Notebook, TargetEntry, TargetFlags, TreeView,
+    Application, ApplicationWindow, Builder, ButtonsType, ComboBoxText, DestDefaults,
+    FileChooserAction, FileChooserDialogBuilder, LabelBuilder, ListStore, MessageDialogBuilder,
+    MessageType, Notebook, ResponseType, TargetEntry, TargetFlags, TreeView,
 };
-use gtk::{ApplicationWindow, Builder, GtkWindowExt};
-use gtk::{FileChooserAction, FileChooserDialogBuilder, ListStore, ResponseType};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -26,16 +26,11 @@ const ACTION_REMOVE: &'static str = "remove-action";
 const ACTION_CLEAR: &'static str = "clear-action";
 const ACTION_EXECUTE: &'static str = "execute-action";
 
-const ID_ADD_BUTTON: &'static str = "add-button";
-const ID_CLEAR_BUTTON: &'static str = "clear-button";
-const ID_EXECUTE_BUTTON: &'static str = "execute-button";
 const ID_FILE_LIST: &'static str = "file-list";
 const ID_FILE_LIST_STORE: &'static str = "file-list-store";
-const ID_HEADERBAR: &'static str = "headerbar";
 const ID_MAIN_WINDOW: &'static str = "main-window";
 const ID_NOTEBOOK: &'static str = "notebook";
 const ID_RENAME_TARGET_COMBO_BOX: &'static str = "rename-target-combo-box";
-const ID_REMOVE_BUTTON: &'static str = "remove-button";
 
 macro_rules! generate_clones {
     ($($n:ident),+) => (
@@ -344,7 +339,6 @@ impl Observer<RenamerObserverArg, Error> for RenamerChangeObserver {
 #[cfg(test)]
 mod test {
     use super::*;
-    use gio::ActionExt;
 
     #[test]
     fn test_init_actions_signals() {

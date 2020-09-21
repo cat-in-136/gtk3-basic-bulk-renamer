@@ -124,7 +124,7 @@
                 <property name="margin_bottom">3</property>
                 <property name="layout_style">end</property>
                 <child>
-                  <object class="GtkButton" id="execute-button">
+                  <object class="GtkButton">
                     <property name="label">Rename</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
@@ -155,14 +155,14 @@
       </object>
     </child>
     <child type="titlebar">
-      <object class="GtkHeaderBar" id="headerbar">
+      <object class="GtkHeaderBar">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="title" translatable="yes">Gtk Basic Bulk Renamer</property>
         <property name="has_subtitle">False</property>
         <property name="show_close_button">True</property>
         <child>
-          <object class="GtkButton" id="add-button">
+          <object class="GtkButton">
             <property name="name">properties-button</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
@@ -179,7 +179,7 @@
           </object>
         </child>
         <child>
-          <object class="GtkButton" id="remove-button">
+          <object class="GtkButton">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
@@ -197,7 +197,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="clear-button">
+          <object class="GtkButton">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
