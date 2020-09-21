@@ -67,6 +67,7 @@ impl Window {
         self.builder.get_object(name).unwrap()
     }
 
+    #[cfg(test)]
     fn get_simple_action(&self, name: &str) -> SimpleAction {
         self.main_window()
             .lookup_action(name)
@@ -81,6 +82,7 @@ impl Window {
         let file_list = self.get_object::<TreeView>(ID_FILE_LIST);
         let selection = file_list.clone().get_selection();
         let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
+        let rename_target_combo_box = self.get_object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX);
 
         let renamer_change_observer = Rc::new(RenamerChangeObserver {
             builder: self.builder.clone(),
@@ -237,6 +239,19 @@ impl Window {
             notebook.connect_switch_page(move |_, _, page_id| {
                 let renamer_type = RenamerType::iter()
                     .nth(page_id as usize)
+                    .unwrap_or(RenamerType::Replace);
+                renamer_change_observer
+                    .update(&(renamer_type, ()))
+                    .unwrap_or_else(|_| {
+                        reset_renaming_of_file_list(&file_list_store);
+                    });
+            });
+        }
+        {
+            generate_clones!(file_list_store, notebook, renamer_change_observer);
+            rename_target_combo_box.connect_changed(move |_| {
+                let renamer_type = RenamerType::iter()
+                    .nth(notebook.get_current_page().unwrap_or(0) as usize)
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
                     .update(&(renamer_type, ()))

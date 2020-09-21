@@ -6,7 +6,7 @@ use gtk::prelude::*;
 use gtk::ListStore;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[repr(C)]
 pub(crate) enum RenamerTarget {
     Name = 0,
@@ -124,6 +124,7 @@ mod test {
             files: &[(String, String)],
             target: RenamerTarget,
         ) -> Result<IntoIter<(String, String)>, Error> {
+            assert_eq!(target, RenamerTarget::All);
             Ok(files
                 .iter()
                 .map(|(name, parent)| {

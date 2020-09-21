@@ -63,6 +63,22 @@ pub(crate) fn get_path_from_selection_data(sel_data: &SelectionData) -> Vec<Path
     }
 }
 
+pub(crate) fn split_file_at_dot(file: &str) -> (&str, Option<&str>) {
+    if file == "." || file == ".." {
+        (file, None)
+    } else {
+        let mut iter = file.rsplitn(2, ".");
+        let after = iter.next();
+        let before = iter.next();
+        match (before, after) {
+            (None, None) => ("", None),
+            (Some(""), _) => (file, None),
+            (None, Some(_)) => (file, None),
+            (Some(before), after) => (before, after),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct UnixTime(pub i64);
 
@@ -182,6 +198,24 @@ mod test {
                 PathBuf::from("/tmp/test"),
                 PathBuf::from("/home/test/foobar")
             ]
+        );
+    }
+
+    #[test]
+    fn test_split_file_at_dot() {
+        assert_eq!(split_file_at_dot(""), ("", None));
+        assert_eq!(split_file_at_dot("."), (".", None));
+        assert_eq!(split_file_at_dot(".."), ("..", None));
+        assert_eq!(split_file_at_dot(".hidden"), (".hidden", None));
+        assert_eq!(split_file_at_dot(".hidden.txt"), (".hidden", Some("txt")));
+        assert_eq!(split_file_at_dot("file_name"), ("file_name", None));
+        assert_eq!(
+            split_file_at_dot("file_name.txt"),
+            ("file_name", Some("txt"))
+        );
+        assert_eq!(
+            split_file_at_dot("file.name.txt"),
+            ("file.name", Some("txt"))
         );
     }
 

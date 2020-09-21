@@ -26,7 +26,7 @@ pub(crate) trait Renamer {
 
 pub(crate) type RenamerObserverArg = (RenamerType, ());
 
-#[derive(Debug, Clone, Copy, EnumIter)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, EnumIter)]
 #[repr(C)]
 pub(crate) enum RenamerType {
     Replace = 0,

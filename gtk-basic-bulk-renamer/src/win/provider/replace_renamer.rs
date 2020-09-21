@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::observer::{Observer, SubjectImpl};
+use crate::utils::split_file_at_dot;
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry, EntryIconPosition};
@@ -148,9 +149,27 @@ impl ReplaceRenamer {
         files
             .iter()
             .map(|(file_name, dir_name)| {
-                let new_file_name = matcher
-                    .replace_all(file_name.as_str(), replacement)
-                    .to_string();
+                let new_file_name = match target {
+                    RenamerTarget::Name => {
+                        let (stem, extension) = split_file_at_dot(file_name.as_str());
+                        let new_stem = matcher.replace_all(stem, replacement).to_string();
+                        if let Some(suffix) = extension {
+                            [new_stem.as_str(), suffix].join(".").to_string()
+                        } else {
+                            new_stem
+                        }
+                    }
+                    RenamerTarget::Suffix => match split_file_at_dot(file_name.as_str()) {
+                        (stem, Some(suffix)) => {
+                            let new_suffix = matcher.replace_all(suffix, replacement).to_string();
+                            [stem, new_suffix.as_str()].join(".").to_string()
+                        }
+                        (stem, None) => stem.to_string(),
+                    },
+                    RenamerTarget::All => matcher
+                        .replace_all(file_name.as_str(), replacement)
+                        .to_string(),
+                };
                 (new_file_name.to_string(), dir_name.clone())
             })
             .collect::<Vec<_>>()
@@ -243,6 +262,7 @@ mod test {
                 "x_$1",
                 &[
                     ("a_1.txt".to_string(), "/tmp".to_string()),
+                    ("a_1.a_2".to_string(), "/tmp".to_string()),
                     ("aa_2_a_3.txt".to_string(), "/home/foo".to_string()),
                     ("b_1".to_string(), "/home/foo".to_string()),
                 ],
@@ -251,8 +271,43 @@ mod test {
             .collect::<Vec<_>>(),
             vec![
                 ("x_1.txt".to_string(), "/tmp".to_string()),
+                ("x_1.x_2".to_string(), "/tmp".to_string()),
                 ("x_2_x_3.txt".to_string(), "/home/foo".to_string()),
                 ("b_1".to_string(), "/home/foo".to_string()),
+            ]
+        );
+
+        assert_eq!(
+            ReplaceRenamer::apply_replace_with(
+                &matcher,
+                "x_$1",
+                &[
+                    ("a_1.txt".to_string(), "/tmp".to_string()),
+                    ("a_1.a_2".to_string(), "/tmp".to_string()),
+                ],
+                RenamerTarget::Name,
+            )
+            .collect::<Vec<_>>(),
+            vec![
+                ("x_1.txt".to_string(), "/tmp".to_string()),
+                ("x_1.a_2".to_string(), "/tmp".to_string()),
+            ]
+        );
+
+        assert_eq!(
+            ReplaceRenamer::apply_replace_with(
+                &matcher,
+                "x_$1",
+                &[
+                    ("a_1.txt".to_string(), "/tmp".to_string()),
+                    ("a_1.a_2".to_string(), "/tmp".to_string()),
+                ],
+                RenamerTarget::Suffix,
+            )
+            .collect::<Vec<_>>(),
+            vec![
+                ("a_1.txt".to_string(), "/tmp".to_string()),
+                ("a_1.x_2".to_string(), "/tmp".to_string()),
             ]
         );
     }
