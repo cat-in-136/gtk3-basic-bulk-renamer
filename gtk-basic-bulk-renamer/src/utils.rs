@@ -83,16 +83,30 @@ pub(crate) fn split_file_at_dot(file: &str) -> (&str, Option<&str>) {
 pub(crate) enum InsertPosition {
     Front(usize),
     Back(usize),
+    FrontOverwrite(usize),
+    BackOverwrite(usize),
 }
 
 impl InsertPosition {
     pub fn apply_to(self, text: &str, replacement: &str) -> String {
         let idx = match self {
-            InsertPosition::Front(pos) => pos,
-            InsertPosition::Back(pos) => text.len().checked_sub(pos).unwrap_or(0),
-        };
+            InsertPosition::Front(pos) | InsertPosition::FrontOverwrite(pos) => pos,
+            InsertPosition::Back(pos) | InsertPosition::BackOverwrite(pos) => {
+                text.len().checked_sub(pos).unwrap_or(0)
+            }
+        }
+        .min(text.len());
+
         let mut new_text = text.to_string();
-        new_text.insert_str(idx.min(text.len()), &replacement);
+        match self {
+            InsertPosition::Front(_) | InsertPosition::Back(_) => {
+                new_text.insert_str(idx, &replacement);
+            }
+            InsertPosition::FrontOverwrite(_) | InsertPosition::BackOverwrite(_) => {
+                let range = idx..(idx + replacement.len()).min(text.len());
+                new_text.replace_range(range, &replacement);
+            }
+        }
         new_text
     }
 }
@@ -239,17 +253,33 @@ mod test {
 
     #[test]
     fn test_insert_position() {
-        assert_eq!(InsertPosition::Front(0).apply_to("text", "INS"), "INStext");
-        assert_eq!(InsertPosition::Front(1).apply_to("text", "INS"), "tINSext");
-        assert_eq!(InsertPosition::Front(3).apply_to("text", "INS"), "texINSt");
-        assert_eq!(InsertPosition::Front(4).apply_to("text", "INS"), "textINS");
-        assert_eq!(InsertPosition::Front(5).apply_to("text", "INS"), "textINS");
+        use InsertPosition::*;
 
-        assert_eq!(InsertPosition::Back(0).apply_to("text", "INS"), "textINS");
-        assert_eq!(InsertPosition::Back(1).apply_to("text", "INS"), "texINSt");
-        assert_eq!(InsertPosition::Back(3).apply_to("text", "INS"), "tINSext");
-        assert_eq!(InsertPosition::Back(4).apply_to("text", "INS"), "INStext");
-        assert_eq!(InsertPosition::Back(5).apply_to("text", "INS"), "INStext");
+        assert_eq!(Front(0).apply_to("text", "INS"), "INStext");
+        assert_eq!(Front(1).apply_to("text", "INS"), "tINSext");
+        assert_eq!(Front(3).apply_to("text", "INS"), "texINSt");
+        assert_eq!(Front(4).apply_to("text", "INS"), "textINS");
+        assert_eq!(Front(5).apply_to("text", "INS"), "textINS");
+
+        assert_eq!(Back(0).apply_to("text", "INS"), "textINS");
+        assert_eq!(Back(1).apply_to("text", "INS"), "texINSt");
+        assert_eq!(Back(3).apply_to("text", "INS"), "tINSext");
+        assert_eq!(Back(4).apply_to("text", "INS"), "INStext");
+        assert_eq!(Back(5).apply_to("text", "INS"), "INStext");
+
+        assert_eq!(FrontOverwrite(0).apply_to("text", "OW"), "OWxt");
+        assert_eq!(FrontOverwrite(1).apply_to("text", "OW"), "tOWt");
+        assert_eq!(FrontOverwrite(2).apply_to("text", "OW"), "teOW");
+        assert_eq!(FrontOverwrite(3).apply_to("text", "OW"), "texOW");
+        assert_eq!(FrontOverwrite(4).apply_to("text", "OW"), "textOW");
+        assert_eq!(FrontOverwrite(5).apply_to("text", "OW"), "textOW");
+
+        assert_eq!(BackOverwrite(0).apply_to("text", "OW"), "textOW");
+        assert_eq!(BackOverwrite(1).apply_to("text", "OW"), "texOW");
+        assert_eq!(BackOverwrite(2).apply_to("text", "OW"), "teOW");
+        assert_eq!(BackOverwrite(3).apply_to("text", "OW"), "tOWt");
+        assert_eq!(BackOverwrite(4).apply_to("text", "OW"), "OWxt");
+        assert_eq!(BackOverwrite(5).apply_to("text", "OW"), "OWxt");
     }
 
     #[test]

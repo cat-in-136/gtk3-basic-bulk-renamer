@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::observer::Observer;
 use crate::win::file_list::RenamerTarget;
 use crate::win::provider::date_time_renamer::DateTimeRenamer;
+use crate::win::provider::insert_overwrite_renamer::InsertOverwriteRenamer;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
 use std::rc::Rc;
@@ -9,6 +10,7 @@ use std::vec::IntoIter;
 use strum_macros::EnumIter;
 
 mod date_time_renamer;
+mod insert_overwrite_renamer;
 mod replace_renamer;
 
 pub(crate) trait Renamer {
@@ -30,13 +32,15 @@ pub(crate) type RenamerObserverArg = (RenamerType, ());
 #[repr(C)]
 pub(crate) enum RenamerType {
     Replace = 0,
-    DateTime = 1,
+    InsertOverwrite,
+    DateTime,
 }
 
 impl RenamerType {
     pub fn label(&self) -> &'static str {
         match self {
             RenamerType::Replace => "Search & Replace",
+            RenamerType::InsertOverwrite => "Insert / Overwrite",
             RenamerType::DateTime => "Insert Date/Time",
         }
     }
@@ -44,6 +48,7 @@ impl RenamerType {
 
 pub(crate) struct Provider {
     replace_renamer: ReplaceRenamer,
+    insert_overwrite_renamer: InsertOverwriteRenamer,
     date_time_renamer: DateTimeRenamer,
 }
 
@@ -51,18 +56,22 @@ impl Provider {
     pub fn new() -> Self {
         Self {
             replace_renamer: ReplaceRenamer::new(),
+            insert_overwrite_renamer: InsertOverwriteRenamer::new(),
             date_time_renamer: DateTimeRenamer::new(),
         }
     }
 
     pub fn attach_change(&self, observer: Rc<dyn Observer<RenamerObserverArg, Error>>) {
         self.replace_renamer.attach_change(observer.clone());
+        self.insert_overwrite_renamer
+            .attach_change(observer.clone());
         self.date_time_renamer.attach_change(observer.clone());
     }
 
     pub fn renamer_of(&self, renamer_type: RenamerType) -> Box<&dyn Renamer> {
         Box::new(match renamer_type {
             RenamerType::Replace => &self.replace_renamer,
+            RenamerType::InsertOverwrite => &self.insert_overwrite_renamer,
             RenamerType::DateTime => &self.date_time_renamer,
         })
     }
