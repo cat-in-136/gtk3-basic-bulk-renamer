@@ -15,6 +15,7 @@ gdk="0.13.2"
 strum = "0.20"
 strum_macros = "0.20"
 regex = "1.4"
+heck = "0.3"
 kamadak-exif = "0.5.2"
 
 [dependencies.gtk]

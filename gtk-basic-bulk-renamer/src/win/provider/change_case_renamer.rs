@@ -4,6 +4,7 @@ use crate::utils::split_file_at_dot;
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, ComboBox, Container};
+use heck::*;
 use std::rc::Rc;
 use std::vec::IntoIter;
 
@@ -14,6 +15,7 @@ const ID_CHANGE_CASE_COMBO_BOX: &'static str = "change-case-combo-box";
 enum ChangeCaseKind {
     Uppercase,
     Lowercase,
+    CamelCase,
 }
 
 impl ChangeCaseKind {
@@ -21,6 +23,7 @@ impl ChangeCaseKind {
         match self {
             ChangeCaseKind::Uppercase => text.to_string().to_uppercase(),
             ChangeCaseKind::Lowercase => text.to_string().to_lowercase(),
+            ChangeCaseKind::CamelCase => text.to_string().as_str().to_camel_case(),
         }
     }
 }
@@ -64,6 +67,7 @@ impl ChangeCaseRenamer {
             .and_then(|id| match id.as_str() {
                 "uppercase" => Some(ChangeCaseKind::Uppercase),
                 "lowercase" => Some(ChangeCaseKind::Lowercase),
+                "camelcase" => Some(ChangeCaseKind::CamelCase),
                 _ => None,
             })
     }
@@ -76,24 +80,21 @@ impl ChangeCaseRenamer {
         files
             .iter()
             .map(|(file_name, dir_name)| {
-                let new_file_name = match target {
-                    RenamerTarget::Name => {
-                        let (stem, extension) = split_file_at_dot(file_name.as_str());
-                        let new_stem = change_case_kind.apply(stem);
-                        if let Some(suffix) = extension {
-                            [new_stem.as_str(), suffix].join(".").to_string()
-                        } else {
-                            new_stem
-                        }
-                    }
-                    RenamerTarget::Suffix => match split_file_at_dot(file_name.as_str()) {
-                        (stem, Some(suffix)) => {
-                            let new_suffix = change_case_kind.apply(suffix);
-                            [stem, new_suffix.as_str()].join(".").to_string()
-                        }
-                        (stem, None) => stem.to_string(),
-                    },
-                    RenamerTarget::All => change_case_kind.apply(file_name),
+                let (stem, extension) = split_file_at_dot(file_name.as_str());
+
+                let new_stem = match target {
+                    RenamerTarget::Name | RenamerTarget::All => change_case_kind.apply(stem),
+                    RenamerTarget::Suffix => stem.to_string(),
+                };
+                let new_extension = extension.map(|suffix| match target {
+                    RenamerTarget::Name => suffix.to_string(),
+                    RenamerTarget::Suffix | RenamerTarget::All => change_case_kind.apply(suffix),
+                });
+
+                let new_file_name = if let Some(new_suffix) = new_extension {
+                    [new_stem, new_suffix].join(".").to_string()
+                } else {
+                    new_stem
                 };
                 (new_file_name.to_string(), dir_name.clone())
             })
@@ -167,10 +168,19 @@ mod test {
             ChangeCaseRenamer::apply_replace_with(
                 ChangeCaseKind::Lowercase,
                 &[("Orig.TXT".to_string(), "/tmp".to_string())],
-                RenamerTarget::Name
+                RenamerTarget::Suffix
             )
             .collect::<Vec<_>>(),
-            vec![("orig.TXT".to_string(), "/tmp".to_string()),]
+            vec![("Orig.txt".to_string(), "/tmp".to_string()),]
+        );
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::CamelCase,
+                &[("Original File Name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+                .collect::<Vec<_>>(),
+            vec![("OriginalFileName.TXT".to_string(), "/tmp".to_string()),]
         );
     }
 }

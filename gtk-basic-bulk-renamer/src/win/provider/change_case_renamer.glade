@@ -27,6 +27,7 @@
         <items>
           <item id="uppercase" translatable="yes">UPPERCASE</item>
           <item id="lowercase" translatable="yes">lowercase</item>
+          <item id="camelcase" translatable="yes">CamelCase</item>
         </items>
       </object>
       <packing>
