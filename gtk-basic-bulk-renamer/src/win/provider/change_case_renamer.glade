@@ -28,6 +28,11 @@
           <item id="uppercase" translatable="yes">UPPERCASE</item>
           <item id="lowercase" translatable="yes">lowercase</item>
           <item id="camelcase" translatable="yes">CamelCase</item>
+          <item id="snakecase" translatable="yes">snake_case</item>
+          <item id="kebabcase" translatable="yes">kebab-case</item>
+          <item id="shoutysnakecase" translatable="yes">SHOUTY_SNAKE_CASE</item>
+          <item id="mixedcase" translatable="yes">mixedCase</item>
+          <item id="titlecase" translatable="yes">Title Case</item>
         </items>
       </object>
       <packing>

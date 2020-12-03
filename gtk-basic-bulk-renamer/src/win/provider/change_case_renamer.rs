@@ -16,6 +16,11 @@ enum ChangeCaseKind {
     Uppercase,
     Lowercase,
     CamelCase,
+    SnakeCase,
+    KebabCase,
+    ShoutySnakeCase,
+    MixedCase,
+    TitleCase,
 }
 
 impl ChangeCaseKind {
@@ -24,6 +29,11 @@ impl ChangeCaseKind {
             ChangeCaseKind::Uppercase => text.to_string().to_uppercase(),
             ChangeCaseKind::Lowercase => text.to_string().to_lowercase(),
             ChangeCaseKind::CamelCase => text.to_string().as_str().to_camel_case(),
+            ChangeCaseKind::SnakeCase => text.to_string().as_str().to_snake_case(),
+            ChangeCaseKind::KebabCase => text.to_string().as_str().to_kebab_case(),
+            ChangeCaseKind::ShoutySnakeCase => text.to_string().as_str().to_shouty_snake_case(),
+            ChangeCaseKind::MixedCase => text.to_string().as_str().to_mixed_case(),
+            ChangeCaseKind::TitleCase => text.to_string().as_str().to_title_case(),
         }
     }
 }
@@ -68,6 +78,11 @@ impl ChangeCaseRenamer {
                 "uppercase" => Some(ChangeCaseKind::Uppercase),
                 "lowercase" => Some(ChangeCaseKind::Lowercase),
                 "camelcase" => Some(ChangeCaseKind::CamelCase),
+                "snakecase" => Some(ChangeCaseKind::SnakeCase),
+                "kebabcase" => Some(ChangeCaseKind::KebabCase),
+                "shoutysnakecase" => Some(ChangeCaseKind::ShoutySnakeCase),
+                "mixedcase" => Some(ChangeCaseKind::MixedCase),
+                "titlecase" => Some(ChangeCaseKind::TitleCase),
                 _ => None,
             })
     }
@@ -173,14 +188,60 @@ mod test {
             .collect::<Vec<_>>(),
             vec![("Orig.txt".to_string(), "/tmp".to_string()),]
         );
+
         assert_eq!(
             ChangeCaseRenamer::apply_replace_with(
                 ChangeCaseKind::CamelCase,
-                &[("Original File Name.TXT".to_string(), "/tmp".to_string())],
+                &[("Original file name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+            .collect::<Vec<_>>(),
+            vec![("OriginalFileName.TXT".to_string(), "/tmp".to_string()),]
+        );
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::SnakeCase,
+                &[("Original file name.TXT".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
                 .collect::<Vec<_>>(),
-            vec![("OriginalFileName.TXT".to_string(), "/tmp".to_string()),]
+            vec![("original_file_name.TXT".to_string(), "/tmp".to_string()),]
+        );
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::KebabCase,
+                &[("Original file name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+                .collect::<Vec<_>>(),
+            vec![("original-file-name.TXT".to_string(), "/tmp".to_string()),]
+        );
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::ShoutySnakeCase,
+                &[("Original file name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+                .collect::<Vec<_>>(),
+            vec![("ORIGINAL_FILE_NAME.TXT".to_string(), "/tmp".to_string()),]
+        );
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::MixedCase,
+                &[("Original file name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+                .collect::<Vec<_>>(),
+            vec![("originalFileName.TXT".to_string(), "/tmp".to_string()),]
+        );
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::TitleCase,
+                &[("Original file name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+                .collect::<Vec<_>>(),
+            vec![("Original File Name.TXT".to_string(), "/tmp".to_string()),]
         );
     }
 }
