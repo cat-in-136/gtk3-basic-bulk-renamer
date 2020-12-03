@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::observer::Observer;
 use crate::win::file_list::RenamerTarget;
+use crate::win::provider::change_case_renamer::ChangeCaseRenamer;
 use crate::win::provider::date_time_renamer::DateTimeRenamer;
 use crate::win::provider::insert_overwrite_renamer::InsertOverwriteRenamer;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
@@ -9,6 +10,7 @@ use std::rc::Rc;
 use std::vec::IntoIter;
 use strum_macros::EnumIter;
 
+mod change_case_renamer;
 mod date_time_renamer;
 mod insert_overwrite_renamer;
 mod replace_renamer;
@@ -34,6 +36,7 @@ pub(crate) enum RenamerType {
     Replace = 0,
     InsertOverwrite,
     DateTime,
+    ChangeCase,
 }
 
 impl RenamerType {
@@ -42,6 +45,7 @@ impl RenamerType {
             RenamerType::Replace => "Search & Replace",
             RenamerType::InsertOverwrite => "Insert / Overwrite",
             RenamerType::DateTime => "Insert Date/Time",
+            RenamerType::ChangeCase => "Uppercase / lowercase",
         }
     }
 }
@@ -50,6 +54,7 @@ pub(crate) struct Provider {
     replace_renamer: ReplaceRenamer,
     insert_overwrite_renamer: InsertOverwriteRenamer,
     date_time_renamer: DateTimeRenamer,
+    change_case_renamer: ChangeCaseRenamer,
 }
 
 impl Provider {
@@ -58,6 +63,7 @@ impl Provider {
             replace_renamer: ReplaceRenamer::new(),
             insert_overwrite_renamer: InsertOverwriteRenamer::new(),
             date_time_renamer: DateTimeRenamer::new(),
+            change_case_renamer: ChangeCaseRenamer::new(),
         }
     }
 
@@ -66,6 +72,7 @@ impl Provider {
         self.insert_overwrite_renamer
             .attach_change(observer.clone());
         self.date_time_renamer.attach_change(observer.clone());
+        self.change_case_renamer.attach_change(observer.clone());
     }
 
     pub fn renamer_of(&self, renamer_type: RenamerType) -> Box<&dyn Renamer> {
@@ -73,6 +80,7 @@ impl Provider {
             RenamerType::Replace => &self.replace_renamer,
             RenamerType::InsertOverwrite => &self.insert_overwrite_renamer,
             RenamerType::DateTime => &self.date_time_renamer,
+            RenamerType::ChangeCase => &self.change_case_renamer,
         })
     }
 }
