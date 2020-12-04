@@ -98,7 +98,13 @@ impl ChangeCaseRenamer {
                 let (stem, extension) = split_file_at_dot(file_name.as_str());
 
                 let new_stem = match target {
-                    RenamerTarget::Name | RenamerTarget::All => change_case_kind.apply(stem),
+                    RenamerTarget::Name | RenamerTarget::All => {
+                        if stem.starts_with(".") {
+                            [".".to_string(), change_case_kind.apply(&stem[1..])].concat()
+                        } else {
+                            change_case_kind.apply(stem)
+                        }
+                    }
                     RenamerTarget::Suffix => stem.to_string(),
                 };
                 let new_extension = extension.map(|suffix| match target {
@@ -204,7 +210,7 @@ mod test {
                 &[("Original file name.TXT".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
-                .collect::<Vec<_>>(),
+            .collect::<Vec<_>>(),
             vec![("original_file_name.TXT".to_string(), "/tmp".to_string()),]
         );
         assert_eq!(
@@ -213,7 +219,7 @@ mod test {
                 &[("Original file name.TXT".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
-                .collect::<Vec<_>>(),
+            .collect::<Vec<_>>(),
             vec![("original-file-name.TXT".to_string(), "/tmp".to_string()),]
         );
         assert_eq!(
@@ -222,7 +228,7 @@ mod test {
                 &[("Original file name.TXT".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
-                .collect::<Vec<_>>(),
+            .collect::<Vec<_>>(),
             vec![("ORIGINAL_FILE_NAME.TXT".to_string(), "/tmp".to_string()),]
         );
         assert_eq!(
@@ -231,7 +237,7 @@ mod test {
                 &[("Original file name.TXT".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
-                .collect::<Vec<_>>(),
+            .collect::<Vec<_>>(),
             vec![("originalFileName.TXT".to_string(), "/tmp".to_string()),]
         );
         assert_eq!(
@@ -240,7 +246,7 @@ mod test {
                 &[("Original file name.TXT".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
-                .collect::<Vec<_>>(),
+            .collect::<Vec<_>>(),
             vec![("Original File Name.TXT".to_string(), "/tmp".to_string()),]
         );
     }
