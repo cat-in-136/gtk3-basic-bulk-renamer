@@ -1,7 +1,7 @@
+use crate::basic_bulk_renamer::RenameMapPair;
 use crate::error::Error;
 use crate::utils::{list_store_data_iter, value2string};
 use crate::win::provider::Renamer;
-use basic_bulk_renamer::RenameMapPair;
 use gtk::prelude::*;
 use gtk::ListStore;
 use std::path::PathBuf;

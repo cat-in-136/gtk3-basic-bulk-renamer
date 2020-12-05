@@ -3,6 +3,7 @@ use gio::{ApplicationExt, ApplicationFlags, FileExt};
 use gtk::{Application, WidgetExt};
 use std::env;
 
+mod basic_bulk_renamer;
 mod error;
 mod observer;
 mod utils;

@@ -1,4 +1,4 @@
-use basic_bulk_renamer::RenameError;
+use crate::basic_bulk_renamer::RenameError;
 use regex::Error as RegexError;
 use std::error;
 use std::fmt;

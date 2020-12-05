@@ -10,6 +10,7 @@ pub type RenameMapPair = (PathBuf, PathBuf);
 
 /// Overwrite mode in case of target file collision
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub enum RenameOverwriteMode {
     /// Change the target file name to avoid overwriting
     ChangeFileName,
