@@ -11,15 +11,17 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="orientation">vertical</property>
+    <property name="spacing">6</property>
     <child>
       <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="spacing">12</property>
         <child>
           <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">_Method</property>
+            <property name="label" translatable="yes">_Method:</property>
             <property name="use_underline">True</property>
             <property name="mnemonic_widget">insert-overwrite-method-box</property>
           </object>
@@ -82,6 +84,7 @@
       <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="spacing">12</property>
         <child>
           <object class="GtkLabel">
             <property name="visible">True</property>
