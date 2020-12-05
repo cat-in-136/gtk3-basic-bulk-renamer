@@ -15,6 +15,7 @@ const ID_CHANGE_CASE_COMBO_BOX: &'static str = "change-case-combo-box";
 enum ChangeCaseKind {
     Uppercase,
     Lowercase,
+    FirstLetterUppercase,
     CamelCase,
     SnakeCase,
     KebabCase,
@@ -28,6 +29,9 @@ impl ChangeCaseKind {
         match self {
             ChangeCaseKind::Uppercase => text.to_string().to_uppercase(),
             ChangeCaseKind::Lowercase => text.to_string().to_lowercase(),
+            ChangeCaseKind::FirstLetterUppercase => {
+                text.to_string().as_str().to_first_letter_uppercase()
+            }
             ChangeCaseKind::CamelCase => text.to_string().as_str().to_camel_case(),
             ChangeCaseKind::SnakeCase => text.to_string().as_str().to_snake_case(),
             ChangeCaseKind::KebabCase => text.to_string().as_str().to_kebab_case(),
@@ -77,6 +81,7 @@ impl ChangeCaseRenamer {
             .and_then(|id| match id.as_str() {
                 "uppercase" => Some(ChangeCaseKind::Uppercase),
                 "lowercase" => Some(ChangeCaseKind::Lowercase),
+                "firstletteruppercase" => Some(ChangeCaseKind::FirstLetterUppercase),
                 "camelcase" => Some(ChangeCaseKind::CamelCase),
                 "snakecase" => Some(ChangeCaseKind::SnakeCase),
                 "kebabcase" => Some(ChangeCaseKind::KebabCase),
@@ -147,6 +152,37 @@ impl Renamer for ChangeCaseRenamer {
     }
 }
 
+trait CaseConversion: ToOwned {
+    fn to_first_letter_uppercase(&self) -> Self::Owned;
+}
+
+impl CaseConversion for str {
+    fn to_first_letter_uppercase(&self) -> String {
+        let mut string = String::with_capacity(self.len());
+        let mut first_letter_found = false;
+        for c in self.chars() {
+            if first_letter_found {
+                if c.is_lowercase() {
+                    string.push(c);
+                } else {
+                    string.push_str(c.to_lowercase().to_string().as_str());
+                }
+            } else {
+                if c.is_uppercase() {
+                    string.push(c);
+                    first_letter_found = true;
+                } else if c.is_lowercase() {
+                    string.push_str(c.to_uppercase().to_string().as_str());
+                    first_letter_found = true;
+                } else {
+                    string.push(c);
+                }
+            }
+        }
+        string
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -193,6 +229,16 @@ mod test {
             )
             .collect::<Vec<_>>(),
             vec![("Orig.txt".to_string(), "/tmp".to_string()),]
+        );
+
+        assert_eq!(
+            ChangeCaseRenamer::apply_replace_with(
+                ChangeCaseKind::FirstLetterUppercase,
+                &[("Original File Name.TXT".to_string(), "/tmp".to_string())],
+                RenamerTarget::Name
+            )
+            .collect::<Vec<_>>(),
+            vec![("Original file name.TXT".to_string(), "/tmp".to_string()),]
         );
 
         assert_eq!(
@@ -248,6 +294,19 @@ mod test {
             )
             .collect::<Vec<_>>(),
             vec![("Original File Name.TXT".to_string(), "/tmp".to_string()),]
+        );
+    }
+
+    #[test]
+    fn test_char_conversion_to_first_letter_uppercase() {
+        assert_eq!("".to_first_letter_uppercase(), "");
+        assert_eq!(
+            "first Letter upperCase".to_first_letter_uppercase(),
+            "First letter uppercase"
+        );
+        assert_eq!(
+            "+first letter upperCase".to_first_letter_uppercase(),
+            "+First letter uppercase"
         );
     }
 }

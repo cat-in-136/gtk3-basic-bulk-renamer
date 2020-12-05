@@ -5,40 +5,52 @@
   <object class="GtkBox" id="change-case-renamer-panel">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
+    <property name="orientation">vertical</property>
     <child>
-      <object class="GtkLabel">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="label" translatable="yes">Con_vert to</property>
-        <property name="use_underline">True</property>
-        <property name="mnemonic_widget">change-case-combo-box</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Con_vert to</property>
+            <property name="use_underline">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBoxText" id="change-case-combo-box">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="active_id">uppercase</property>
+            <items>
+              <item id="uppercase" translatable="yes">UPPERCASE</item>
+              <item id="lowercase" translatable="yes">lowercase</item>
+              <item id="firstletteruppercase" translatable="yes">First letter uppercase</item>
+              <item id="camelcase" translatable="yes">CamelCase</item>
+              <item id="snakecase" translatable="yes">snake_case</item>
+              <item id="kebabcase" translatable="yes">kebab-case</item>
+              <item id="shoutysnakecase" translatable="yes">SHOUTY_SNAKE_CASE</item>
+              <item id="mixedcase" translatable="yes">mixedCase</item>
+              <item id="titlecase" translatable="yes">Title Case</item>
+            </items>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
       </object>
       <packing>
         <property name="expand">False</property>
         <property name="fill">True</property>
         <property name="position">0</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkComboBoxText" id="change-case-combo-box">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="active_id">uppercase</property>
-        <items>
-          <item id="uppercase" translatable="yes">UPPERCASE</item>
-          <item id="lowercase" translatable="yes">lowercase</item>
-          <item id="camelcase" translatable="yes">CamelCase</item>
-          <item id="snakecase" translatable="yes">snake_case</item>
-          <item id="kebabcase" translatable="yes">kebab-case</item>
-          <item id="shoutysnakecase" translatable="yes">SHOUTY_SNAKE_CASE</item>
-          <item id="mixedcase" translatable="yes">mixedCase</item>
-          <item id="titlecase" translatable="yes">Title Case</item>
-        </items>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">1</property>
       </packing>
     </child>
   </object>
