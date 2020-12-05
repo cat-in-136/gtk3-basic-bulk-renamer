@@ -26,18 +26,17 @@ enum ChangeCaseKind {
 
 impl ChangeCaseKind {
     pub fn apply<T: ToString>(&self, text: T) -> String {
+        let text = text.to_string();
         match self {
-            ChangeCaseKind::Uppercase => text.to_string().to_uppercase(),
-            ChangeCaseKind::Lowercase => text.to_string().to_lowercase(),
-            ChangeCaseKind::FirstLetterUppercase => {
-                text.to_string().as_str().to_first_letter_uppercase()
-            }
-            ChangeCaseKind::CamelCase => text.to_string().as_str().to_camel_case(),
-            ChangeCaseKind::SnakeCase => text.to_string().as_str().to_snake_case(),
-            ChangeCaseKind::KebabCase => text.to_string().as_str().to_kebab_case(),
-            ChangeCaseKind::ShoutySnakeCase => text.to_string().as_str().to_shouty_snake_case(),
-            ChangeCaseKind::MixedCase => text.to_string().as_str().to_mixed_case(),
-            ChangeCaseKind::TitleCase => text.to_string().as_str().to_title_case(),
+            ChangeCaseKind::Uppercase => text.to_uppercase(),
+            ChangeCaseKind::Lowercase => text.to_lowercase(),
+            ChangeCaseKind::FirstLetterUppercase => text.to_first_letter_uppercase(),
+            ChangeCaseKind::CamelCase => text.to_camel_case(),
+            ChangeCaseKind::SnakeCase => text.to_snake_case(),
+            ChangeCaseKind::KebabCase => text.to_kebab_case(),
+            ChangeCaseKind::ShoutySnakeCase => text.to_shouty_snake_case(),
+            ChangeCaseKind::MixedCase => text.to_mixed_case(),
+            ChangeCaseKind::TitleCase => text.to_title_case(),
         }
     }
 }
