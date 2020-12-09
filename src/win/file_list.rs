@@ -92,7 +92,7 @@ pub(super) fn apply_renamer_to_file_list(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::observer::Observer;
+    use crate::utils::Observer;
     use crate::win::file_list::RenamerTarget;
     use crate::win::provider::RenamerObserverArg;
     use glib::Type;

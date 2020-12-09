@@ -1,7 +1,7 @@
 use crate::basic_bulk_renamer::{BulkRename, RenameError, RenameOverwriteMode};
 use crate::error::Error;
-use crate::observer::Observer;
 use crate::utils::get_path_from_selection_data;
+use crate::utils::Observer;
 use crate::win::file_list::{
     add_files_to_file_list, apply_renamer_to_file_list, get_files_from_file_list,
     reset_renaming_of_file_list, set_files_to_file_list, RenamerTarget,

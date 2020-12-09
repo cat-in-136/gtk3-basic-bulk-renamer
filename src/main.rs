@@ -5,7 +5,6 @@ use std::env;
 
 mod basic_bulk_renamer;
 mod error;
-mod observer;
 mod utils;
 mod win;
 

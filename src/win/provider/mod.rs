@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::observer::Observer;
+use crate::utils::Observer;
 use crate::win::file_list::RenamerTarget;
 use crate::win::provider::change_case_renamer::ChangeCaseRenamer;
 use crate::win::provider::date_time_renamer::DateTimeRenamer;

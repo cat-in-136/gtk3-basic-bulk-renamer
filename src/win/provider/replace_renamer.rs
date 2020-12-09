@@ -1,6 +1,6 @@
 use crate::error::Error;
-use crate::observer::{Observer, SubjectImpl};
 use crate::utils::split_file_at_dot;
+use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry, EntryIconPosition};
@@ -208,7 +208,7 @@ impl Renamer for ReplaceRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::observer::test::CounterObserver;
+    use crate::utils::CounterObserver;
     use gtk::WindowBuilder;
 
     #[test]

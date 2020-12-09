@@ -1,6 +1,6 @@
 use crate::error::Error;
-use crate::observer::{Observer, SubjectImpl};
 use crate::utils::{split_file_at_dot, InsertPosition, UnixTime};
+use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
@@ -232,7 +232,7 @@ impl Renamer for DateTimeRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::observer::test::CounterObserver;
+    use crate::utils::CounterObserver;
     use crate::utils::InsertPosition;
     use gtk::WindowBuilder;
     use regex::RegexBuilder;
