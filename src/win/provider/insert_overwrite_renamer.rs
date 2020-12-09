@@ -1,5 +1,7 @@
 use crate::error::Error;
-use crate::utils::{split_file_at_dot, InsertPosition};
+use crate::utils::{
+    split_file_at_dot, BulkTextReplacement, InsertPosition, TextCharPosition, TextInsertOrOverwrite,
+};
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
@@ -71,11 +73,6 @@ impl InsertOverwriteRenamer {
     }
 
     fn get_replacement_rule(&self) -> Option<(String, InsertPosition)> {
-        enum InsertOrOverwrite {
-            Insert,
-            Overwrite,
-        }
-
         let insert_overwrite_method_combo_box =
             self.get_object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
         let text_entry = self.get_object::<Entry>(ID_TEXT_ENTRY);
@@ -85,26 +82,21 @@ impl InsertOverwriteRenamer {
         let insert_overwrite_method = insert_overwrite_method_combo_box
             .get_active_id()
             .and_then(|id| match id.as_str() {
-                "insert" => Some(InsertOrOverwrite::Insert),
-                "overwrite" => Some(InsertOrOverwrite::Overwrite),
+                "insert" => Some(TextInsertOrOverwrite::Insert),
+                "overwrite" => Some(TextInsertOrOverwrite::Overwrite),
                 _ => None,
             })
-            .unwrap_or(InsertOrOverwrite::Insert);
+            .unwrap_or_default();
         let pos = usize::try_from(at_position_spin_button.get_value_as_int()).unwrap_or(0);
-        let insert_position =
+        let text_character_position =
             at_position_combo_box
                 .get_active_id()
                 .and_then(|id| match id.as_str() {
-                    "front" => Some(match insert_overwrite_method {
-                        InsertOrOverwrite::Insert => InsertPosition::Front(pos),
-                        InsertOrOverwrite::Overwrite => InsertPosition::FrontOverwrite(pos),
-                    }),
-                    "back" => Some(match insert_overwrite_method {
-                        InsertOrOverwrite::Insert => InsertPosition::Back(pos),
-                        InsertOrOverwrite::Overwrite => InsertPosition::BackOverwrite(pos),
-                    }),
+                    "front" => Some(TextCharPosition::Front(pos)),
+                    "back" => Some(TextCharPosition::Back(pos)),
                     _ => None,
                 })?;
+        let insert_position = InsertPosition(text_character_position, insert_overwrite_method);
 
         Some((text_entry.get_text().to_string(), insert_position))
     }
@@ -223,7 +215,7 @@ mod test {
         assert_eq!(
             InsertOverwriteRenamer::apply_replace_with(
                 "TEXT".to_string(),
-                InsertPosition::Front(0),
+                InsertPosition(TextCharPosition::Front(0), TextInsertOrOverwrite::Insert),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::All
             )
@@ -234,7 +226,7 @@ mod test {
         assert_eq!(
             InsertOverwriteRenamer::apply_replace_with(
                 "TEXT".to_string(),
-                InsertPosition::Back(1),
+                InsertPosition(TextCharPosition::Back(1), TextInsertOrOverwrite::Insert),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
@@ -245,7 +237,7 @@ mod test {
         assert_eq!(
             InsertOverwriteRenamer::apply_replace_with(
                 "TEXT".to_string(),
-                InsertPosition::FrontOverwrite(2),
+                InsertPosition(TextCharPosition::Front(2), TextInsertOrOverwrite::Overwrite),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::Suffix
             )
@@ -256,7 +248,7 @@ mod test {
         assert_eq!(
             InsertOverwriteRenamer::apply_replace_with(
                 "TEXT".to_string(),
-                InsertPosition::BackOverwrite(3),
+                InsertPosition(TextCharPosition::Back(3), TextInsertOrOverwrite::Overwrite),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )

@@ -1,5 +1,8 @@
 use crate::error::Error;
-use crate::utils::{split_file_at_dot, InsertPosition, UnixTime};
+use crate::utils::{
+    split_file_at_dot, BulkTextReplacement, InsertPosition, TextCharPosition,
+    TextInsertOrOverwrite, UnixTime,
+};
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
@@ -98,14 +101,16 @@ impl DateTimeRenamer {
                     _ => None,
                 })?;
         let pos = usize::try_from(at_position_spin_button.get_value_as_int()).unwrap_or(0);
-        let insert_position =
+        let insert_position = InsertPosition(
             at_position_combo_box
                 .get_active_id()
                 .and_then(|id| match id.as_str() {
-                    "front" => Some(InsertPosition::Front(pos)),
-                    "back" => Some(InsertPosition::Back(pos)),
+                    "front" => Some(TextCharPosition::Front(pos)),
+                    "back" => Some(TextCharPosition::Back(pos)),
                     _ => None,
-                })?;
+                })?,
+            TextInsertOrOverwrite::Insert,
+        );
 
         Some((
             insert_time_kind,
@@ -330,7 +335,7 @@ mod test {
         let replacement = DateTimeRenamer::apply_replace_with(
             InsertTimeKind::Current,
             "%Y-%m-%d-%H-%M-%S".to_string(),
-            InsertPosition::Front(1),
+            InsertPosition(TextCharPosition::Front(1), TextInsertOrOverwrite::Insert),
             &[jpg_file_pair.clone()],
             RenamerTarget::All,
         )
@@ -348,7 +353,7 @@ mod test {
         let replacement = DateTimeRenamer::apply_replace_with(
             InsertTimeKind::Accessed,
             "%Y-%m-%d-%H-%M-%S".to_string(),
-            InsertPosition::Back(4),
+            InsertPosition(TextCharPosition::Back(4), TextInsertOrOverwrite::Insert),
             &[jpg_file_pair.clone()],
             RenamerTarget::All,
         )
@@ -366,7 +371,7 @@ mod test {
         let replacement = DateTimeRenamer::apply_replace_with(
             InsertTimeKind::Modified,
             "%Y-%m-%d-%H-%M-%S".to_string(),
-            InsertPosition::Front(0),
+            InsertPosition(TextCharPosition::Front(0), TextInsertOrOverwrite::Insert),
             &[jpg_file_pair.clone()],
             RenamerTarget::All,
         )
@@ -384,7 +389,7 @@ mod test {
         let replacement = DateTimeRenamer::apply_replace_with(
             InsertTimeKind::PictureToken,
             "%Y-%m-%d-%H-%M-%S".to_string(),
-            InsertPosition::Front(0),
+            InsertPosition(TextCharPosition::Front(0), TextInsertOrOverwrite::Insert),
             &[jpg_file_pair.clone()],
             RenamerTarget::All,
         )

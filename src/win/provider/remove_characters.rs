@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::utils::{split_file_at_dot, RemoveCharacterPosition, RemoveRangePosition};
+use crate::utils::{split_file_at_dot, BulkTextReplacement, RemoveRangePosition, TextCharPosition};
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
 use gtk::prelude::*;
@@ -79,8 +79,8 @@ impl RemoveCharactersRenamer {
         let remove_from_position = remove_from_combo_box
             .get_active_id()
             .and_then(|id| match id.as_str() {
-                "front" => Some(RemoveCharacterPosition::Front(pos)),
-                "back" => Some(RemoveCharacterPosition::Back(pos)),
+                "front" => Some(TextCharPosition::Front(pos)),
+                "back" => Some(TextCharPosition::Back(pos)),
                 _ => None,
             })?;
 
@@ -89,8 +89,8 @@ impl RemoveCharactersRenamer {
             remove_to_combo_box
                 .get_active_id()
                 .and_then(|id| match id.as_str() {
-                    "front" => Some(RemoveCharacterPosition::Front(pos)),
-                    "back" => Some(RemoveCharacterPosition::Back(pos)),
+                    "front" => Some(TextCharPosition::Front(pos)),
+                    "back" => Some(TextCharPosition::Back(pos)),
                     _ => None,
                 })?;
 
@@ -212,10 +212,7 @@ mod test {
     fn test_insert_overwrite_renamer_apply_replacement_with() {
         assert_eq!(
             RemoveCharactersRenamer::apply_replace_with(
-                RemoveRangePosition(
-                    RemoveCharacterPosition::Front(0),
-                    RemoveCharacterPosition::Front(0)
-                ),
+                RemoveRangePosition(TextCharPosition::Front(0), TextCharPosition::Front(0)),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::All
             )
@@ -225,10 +222,7 @@ mod test {
 
         assert_eq!(
             RemoveCharactersRenamer::apply_replace_with(
-                RemoveRangePosition(
-                    RemoveCharacterPosition::Front(1),
-                    RemoveCharacterPosition::Back(1)
-                ),
+                RemoveRangePosition(TextCharPosition::Front(1), TextCharPosition::Back(1)),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::All
             )
@@ -237,10 +231,7 @@ mod test {
         );
         assert_eq!(
             RemoveCharactersRenamer::apply_replace_with(
-                RemoveRangePosition(
-                    RemoveCharacterPosition::Back(3),
-                    RemoveCharacterPosition::Front(3)
-                ),
+                RemoveRangePosition(TextCharPosition::Back(3), TextCharPosition::Front(3)),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::Name
             )
@@ -249,10 +240,7 @@ mod test {
         );
         assert_eq!(
             RemoveCharactersRenamer::apply_replace_with(
-                RemoveRangePosition(
-                    RemoveCharacterPosition::Front(1),
-                    RemoveCharacterPosition::Front(2)
-                ),
+                RemoveRangePosition(TextCharPosition::Front(1), TextCharPosition::Front(2)),
                 &[("orig.txt".to_string(), "/tmp".to_string())],
                 RenamerTarget::Suffix
             )
