@@ -111,6 +111,38 @@ impl InsertPosition {
     }
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum RemoveCharacterPosition {
+    Front(usize),
+    Back(usize),
+}
+
+impl RemoveCharacterPosition {
+    fn get_position(&self, text: &str) -> usize {
+        match self {
+            RemoveCharacterPosition::Front(pos) => *pos,
+            RemoveCharacterPosition::Back(pos) => text.len().checked_sub(*pos).unwrap_or(0),
+        }
+        .min(text.len())
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) struct RemoveRangePosition(pub RemoveCharacterPosition, pub RemoveCharacterPosition);
+
+impl RemoveRangePosition {
+    pub fn apply_to(self, text: &str, replacement: &str) -> String {
+        let pos_from = self.0.get_position(text).min(text.len());
+        let pos_to = self.1.get_position(text).min(text.len());
+
+        let mut new_text = text.to_string();
+        if pos_from <= pos_to {
+            new_text.replace_range(pos_from..pos_to, replacement);
+        }
+        new_text
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct UnixTime(pub i64);
 
@@ -280,6 +312,52 @@ mod test {
         assert_eq!(BackOverwrite(3).apply_to("text", "OW"), "tOWt");
         assert_eq!(BackOverwrite(4).apply_to("text", "OW"), "OWxt");
         assert_eq!(BackOverwrite(5).apply_to("text", "OW"), "OWxt");
+    }
+
+    #[test]
+    fn test_remove_character_position() {
+        use RemoveCharacterPosition::*;
+
+        assert_eq!(Front(0).get_position("text"), 0);
+        assert_eq!(Front(1).get_position("text"), 1);
+        assert_eq!(Front(2).get_position("text"), 2);
+        assert_eq!(Front(3).get_position("text"), 3);
+        assert_eq!(Front(4).get_position("text"), 4);
+        assert_eq!(Front(5).get_position("text"), 4);
+
+        assert_eq!(Back(0).get_position("text"), 4);
+        assert_eq!(Back(1).get_position("text"), 3);
+        assert_eq!(Back(2).get_position("text"), 2);
+        assert_eq!(Back(3).get_position("text"), 1);
+        assert_eq!(Back(4).get_position("text"), 0);
+        assert_eq!(Back(5).get_position("text"), 0);
+    }
+
+    #[test]
+    fn test_remove_range_position() {
+        use RemoveCharacterPosition::*;
+
+        assert_eq!(
+            RemoveRangePosition(Front(0), Front(0)).apply_to("text", "INS"),
+            "INStext"
+        );
+        assert_eq!(
+            RemoveRangePosition(Back(0), Back(0)).apply_to("text", "INS"),
+            "textINS"
+        );
+        assert_eq!(
+            RemoveRangePosition(Front(1), Back(1)).apply_to("text", "INS"),
+            "tINSt"
+        );
+        assert_eq!(
+            RemoveRangePosition(Back(3), Front(3)).apply_to("text", "INS"),
+            "tINSt"
+        );
+
+        assert_eq!(
+            RemoveRangePosition(Front(1), Front(0)).apply_to("text", "INS"),
+            "text"
+        );
     }
 
     #[test]

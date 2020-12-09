@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.36.0 -->
+<interface>
+  <requires lib="gtk+" version="3.22"/>
+  <object class="GtkAdjustment" id="remove-from-spin-button-adjustment">
+    <property name="upper">1024</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="remove-to-spin-button-adjustment">
+    <property name="upper">1024</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkGrid" id="remove-characters-panel">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="row_spacing">6</property>
+    <property name="column_spacing">12</property>
+    <child>
+      <object class="GtkLabel">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Remove _From position:</property>
+        <property name="use_underline">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSpinButton" id="remove-from-spin-button">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="text" translatable="yes">0</property>
+        <property name="input_purpose">digits</property>
+        <property name="adjustment">remove-from-spin-button-adjustment</property>
+        <property name="snap_to_ticks">True</property>
+        <property name="numeric">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkComboBoxText" id="remove-from-combo-box">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="active_id">front</property>
+        <items>
+          <item id="front" translatable="yes">From the front</item>
+          <item id="back" translatable="yes">From the back</item>
+        </items>
+      </object>
+      <packing>
+        <property name="left_attach">2</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">_To position:</property>
+        <property name="use_underline">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSpinButton" id="remove-to-spin-button">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="text" translatable="yes">0</property>
+        <property name="input_purpose">digits</property>
+        <property name="adjustment">remove-to-spin-button-adjustment</property>
+        <property name="snap_to_ticks">True</property>
+        <property name="numeric">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkComboBoxText" id="remove-to-combo-box">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="active_id">front</property>
+        <items>
+          <item id="front" translatable="yes">From the front</item>
+          <item id="back" translatable="yes">From the back</item>
+        </items>
+      </object>
+      <packing>
+        <property name="left_attach">2</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+  </object>
+</interface>

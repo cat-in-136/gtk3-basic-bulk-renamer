@@ -4,6 +4,7 @@ use crate::win::file_list::RenamerTarget;
 use crate::win::provider::change_case_renamer::ChangeCaseRenamer;
 use crate::win::provider::date_time_renamer::DateTimeRenamer;
 use crate::win::provider::insert_overwrite_renamer::InsertOverwriteRenamer;
+use crate::win::provider::remove_characters::RemoveCharactersRenamer;
 use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
 use std::rc::Rc;
@@ -13,6 +14,7 @@ use strum_macros::EnumIter;
 mod change_case_renamer;
 mod date_time_renamer;
 mod insert_overwrite_renamer;
+mod remove_characters;
 mod replace_renamer;
 
 pub(crate) trait Renamer {
@@ -36,6 +38,7 @@ pub(crate) enum RenamerType {
     Replace = 0,
     InsertOverwrite,
     DateTime,
+    RemoveCharacters,
     ChangeCase,
 }
 
@@ -45,6 +48,7 @@ impl RenamerType {
             RenamerType::Replace => "Search & Replace",
             RenamerType::InsertOverwrite => "Insert / Overwrite",
             RenamerType::DateTime => "Insert Date/Time",
+            RenamerType::RemoveCharacters => "Remove Characters",
             RenamerType::ChangeCase => "Uppercase / lowercase",
         }
     }
@@ -54,6 +58,7 @@ pub(crate) struct Provider {
     replace_renamer: ReplaceRenamer,
     insert_overwrite_renamer: InsertOverwriteRenamer,
     date_time_renamer: DateTimeRenamer,
+    remove_characters_renamer: RemoveCharactersRenamer,
     change_case_renamer: ChangeCaseRenamer,
 }
 
@@ -63,6 +68,7 @@ impl Provider {
             replace_renamer: ReplaceRenamer::new(),
             insert_overwrite_renamer: InsertOverwriteRenamer::new(),
             date_time_renamer: DateTimeRenamer::new(),
+            remove_characters_renamer: RemoveCharactersRenamer::new(),
             change_case_renamer: ChangeCaseRenamer::new(),
         }
     }
@@ -72,6 +78,8 @@ impl Provider {
         self.insert_overwrite_renamer
             .attach_change(observer.clone());
         self.date_time_renamer.attach_change(observer.clone());
+        self.remove_characters_renamer
+            .attach_change(observer.clone());
         self.change_case_renamer.attach_change(observer.clone());
     }
 
@@ -80,6 +88,7 @@ impl Provider {
             RenamerType::Replace => &self.replace_renamer,
             RenamerType::InsertOverwrite => &self.insert_overwrite_renamer,
             RenamerType::DateTime => &self.date_time_renamer,
+            RenamerType::RemoveCharacters => &self.remove_characters_renamer,
             RenamerType::ChangeCase => &self.change_case_renamer,
         })
     }
