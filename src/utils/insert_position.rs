@@ -1,3 +1,5 @@
+use unicode_segmentation::UnicodeSegmentation;
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(crate) enum TextCharPosition {
     Front(usize),
@@ -6,11 +8,18 @@ pub(crate) enum TextCharPosition {
 
 impl TextCharPosition {
     fn get_position(&self, text: &str) -> usize {
+        let mut grapheme_indices =
+            UnicodeSegmentation::grapheme_indices(text, true).map(|(pos, _)| pos);
         match self {
-            TextCharPosition::Front(pos) => *pos,
-            TextCharPosition::Back(pos) => text.len().checked_sub(*pos).unwrap_or(0),
+            TextCharPosition::Front(pos) => grapheme_indices.nth(*pos).unwrap_or(text.len()),
+            TextCharPosition::Back(pos) => {
+                if *pos == 0 {
+                    text.len()
+                } else {
+                    grapheme_indices.nth_back(*pos - 1).unwrap_or(0)
+                }
+            }
         }
-        .min(text.len())
     }
 }
 
@@ -88,6 +97,20 @@ mod test {
         assert_eq!(Back(3).get_position("text"), 1);
         assert_eq!(Back(4).get_position("text"), 0);
         assert_eq!(Back(5).get_position("text"), 0);
+
+        // "😀🧝‍♀️🧝‍♂️": "😀" "🧝‍♀" "️🧝‍♂️"
+
+        assert_eq!(Front(0).get_position("😀🧝‍♀️🧝‍♂️"), 0);
+        assert_eq!(Front(1).get_position("😀🧝‍♀️🧝‍♂️"), 4);
+        assert_eq!(Front(2).get_position("😀🧝‍♀️🧝‍♂️"), 17);
+        assert_eq!(Front(3).get_position("😀🧝‍♀️🧝‍♂️"), 30);
+        assert_eq!(Front(4).get_position("😀🧝‍♀️🧝‍♂️"), 30);
+
+        assert_eq!(Back(0).get_position("😀🧝‍♀️🧝‍♂️"), 30);
+        assert_eq!(Back(1).get_position("😀🧝‍♀️🧝‍♂️"), 17);
+        assert_eq!(Back(2).get_position("😀🧝‍♀️🧝‍♂️"), 4);
+        assert_eq!(Back(3).get_position("😀🧝‍♀️🧝‍♂️"), 0);
+        assert_eq!(Back(4).get_position("😀🧝‍♀️🧝‍♂️"), 0);
     }
 
     #[test]
