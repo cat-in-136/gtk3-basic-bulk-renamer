@@ -78,21 +78,12 @@ impl RemoveCharactersRenamer {
         let pos = usize::try_from(remove_from_spin_button.get_value_as_int()).unwrap_or(0);
         let remove_from_position = remove_from_combo_box
             .get_active_id()
-            .and_then(|id| match id.as_str() {
-                "front" => Some(TextCharPosition::Front(pos)),
-                "back" => Some(TextCharPosition::Back(pos)),
-                _ => None,
-            })?;
+            .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?;
 
         let pos = usize::try_from(remove_to_spin_button.get_value_as_int()).unwrap_or(0);
-        let remove_to_position =
-            remove_to_combo_box
-                .get_active_id()
-                .and_then(|id| match id.as_str() {
-                    "front" => Some(TextCharPosition::Front(pos)),
-                    "back" => Some(TextCharPosition::Back(pos)),
-                    _ => None,
-                })?;
+        let remove_to_position = remove_to_combo_box
+            .get_active_id()
+            .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?;
 
         Some(RemoveRangePosition(
             remove_from_position,

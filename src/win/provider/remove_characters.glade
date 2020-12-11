@@ -48,10 +48,10 @@
       <object class="GtkComboBoxText" id="remove-from-combo-box">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="active_id">front</property>
+        <property name="active_id">Front</property>
         <items>
-          <item id="front" translatable="yes">From the front</item>
-          <item id="back" translatable="yes">From the back</item>
+          <item id="Front" translatable="yes">From the front</item>
+          <item id="Back" translatable="yes">From the back</item>
         </items>
       </object>
       <packing>
@@ -90,10 +90,10 @@
       <object class="GtkComboBoxText" id="remove-to-combo-box">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="active_id">front</property>
+        <property name="active_id">Front</property>
         <items>
-          <item id="front" translatable="yes">From the front</item>
-          <item id="back" translatable="yes">From the back</item>
+          <item id="Front" translatable="yes">From the front</item>
+          <item id="Back" translatable="yes">From the back</item>
         </items>
       </object>
       <packing>

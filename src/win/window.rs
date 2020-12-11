@@ -19,6 +19,7 @@ use gtk::{
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::str::FromStr;
 use strum::IntoEnumIterator;
 
 const ACTION_ADD: &'static str = "add-action";
@@ -325,12 +326,7 @@ impl Observer<RenamerObserverArg, Error> for RenamerChangeObserver {
         let target = self
             .get_object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX)
             .get_active_id()
-            .and_then(|id| match id.as_str() {
-                "name" => Some(RenamerTarget::Name),
-                "suffix" => Some(RenamerTarget::Suffix),
-                "all" => Some(RenamerTarget::All),
-                _ => None,
-            })
+            .and_then(|id| RenamerTarget::from_str(id.as_str()).ok())
             .unwrap_or(RenamerTarget::All);
         apply_renamer_to_file_list(&file_list_store, target, renamer)
     }

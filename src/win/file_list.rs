@@ -5,9 +5,9 @@ use crate::win::provider::Renamer;
 use gtk::prelude::*;
 use gtk::ListStore;
 use std::path::PathBuf;
+use strum_macros::EnumString;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-#[repr(C)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, EnumString)]
 pub(crate) enum RenamerTarget {
     Name = 0,
     Suffix = 1,

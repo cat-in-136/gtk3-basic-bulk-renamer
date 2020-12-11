@@ -6,12 +6,14 @@ use gtk::prelude::*;
 use gtk::{Builder, ComboBox, Container};
 use heck::*;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::vec::IntoIter;
+use strum_macros::EnumString;
 
 const ID_CHANGE_CASE_RENAMER_PANEL: &'static str = "change-case-renamer-panel";
 const ID_CHANGE_CASE_COMBO_BOX: &'static str = "change-case-combo-box";
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, EnumString)]
 enum ChangeCaseKind {
     Uppercase,
     Lowercase,
@@ -77,18 +79,7 @@ impl ChangeCaseRenamer {
 
         change_case_combo_box
             .get_active_id()
-            .and_then(|id| match id.as_str() {
-                "uppercase" => Some(ChangeCaseKind::Uppercase),
-                "lowercase" => Some(ChangeCaseKind::Lowercase),
-                "firstletteruppercase" => Some(ChangeCaseKind::FirstLetterUppercase),
-                "camelcase" => Some(ChangeCaseKind::CamelCase),
-                "snakecase" => Some(ChangeCaseKind::SnakeCase),
-                "kebabcase" => Some(ChangeCaseKind::KebabCase),
-                "shoutysnakecase" => Some(ChangeCaseKind::ShoutySnakeCase),
-                "mixedcase" => Some(ChangeCaseKind::MixedCase),
-                "titlecase" => Some(ChangeCaseKind::TitleCase),
-                _ => None,
-            })
+            .and_then(|id| ChangeCaseKind::from_str(id.as_str()).ok())
     }
 
     fn apply_replace_with(

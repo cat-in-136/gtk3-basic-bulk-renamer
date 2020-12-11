@@ -8,6 +8,7 @@ use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
 use std::convert::TryFrom;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::vec::IntoIter;
 
 const ID_INSERT_OVERWRITE_RENAMER_PANEL: &'static str = "insert-overwrite-renamer-panel";
@@ -81,21 +82,12 @@ impl InsertOverwriteRenamer {
 
         let insert_overwrite_method = insert_overwrite_method_combo_box
             .get_active_id()
-            .and_then(|id| match id.as_str() {
-                "insert" => Some(TextInsertOrOverwrite::Insert),
-                "overwrite" => Some(TextInsertOrOverwrite::Overwrite),
-                _ => None,
-            })
+            .and_then(|id| TextInsertOrOverwrite::from_str(id.as_str()).ok())
             .unwrap_or_default();
         let pos = usize::try_from(at_position_spin_button.get_value_as_int()).unwrap_or(0);
-        let text_character_position =
-            at_position_combo_box
-                .get_active_id()
-                .and_then(|id| match id.as_str() {
-                    "front" => Some(TextCharPosition::Front(pos)),
-                    "back" => Some(TextCharPosition::Back(pos)),
-                    _ => None,
-                })?;
+        let text_character_position = at_position_combo_box
+            .get_active_id()
+            .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?;
         let insert_position = InsertPosition(text_character_position, insert_overwrite_method);
 
         Some((text_entry.get_text().to_string(), insert_position))

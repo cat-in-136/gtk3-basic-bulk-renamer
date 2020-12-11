@@ -102,11 +102,11 @@
               <object class="GtkComboBoxText" id="rename-target-combo-box">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="active_id">name</property>
+                <property name="active_id">Name</property>
                 <items>
-                  <item id="name" translatable="yes">Name only</item>
-                  <item id="suffix" translatable="yes">Suffix only</item>
-                  <item id="all" translatable="yes">Name &amp; Suffix</item>
+                  <item id="Name" translatable="yes">Name only</item>
+                  <item id="Suffix" translatable="yes">Suffix only</item>
+                  <item id="All" translatable="yes">Name &amp; Suffix</item>
                 </items>
               </object>
               <packing>

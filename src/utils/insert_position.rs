@@ -1,9 +1,20 @@
+use strum_macros::EnumString;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(crate) enum TextCharPosition {
     Front(usize),
     Back(usize),
+}
+
+impl TextCharPosition {
+    pub fn from_str_usize(method: &str, pos: usize) -> Option<Self> {
+        match method {
+            "Front" => Some(Self::Front(pos)),
+            "Back" => Some(Self::Back(pos)),
+            _ => None,
+        }
+    }
 }
 
 impl TextCharPosition {
@@ -23,7 +34,7 @@ impl TextCharPosition {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, EnumString)]
 pub(crate) enum TextInsertOrOverwrite {
     Insert = 0,
     Overwrite,

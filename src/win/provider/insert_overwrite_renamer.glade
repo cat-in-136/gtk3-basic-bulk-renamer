@@ -38,8 +38,8 @@
             <property name="active">0</property>
             <property name="active_id">insert</property>
             <items>
-              <item id="insert" translatable="yes">Insert</item>
-              <item id="overwrite" translatable="yes">Overwrite</item>
+              <item id="Insert" translatable="yes">Insert</item>
+              <item id="Overwrite" translatable="yes">Overwrite</item>
             </items>
           </object>
           <packing>
@@ -118,10 +118,10 @@
           <object class="GtkComboBoxText" id="at-position-combo-box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="active_id">front</property>
+            <property name="active_id">Front</property>
             <items>
-              <item id="front" translatable="yes">From the front</item>
-              <item id="back" translatable="yes">From the back</item>
+              <item id="Front" translatable="yes">From the front</item>
+              <item id="Back" translatable="yes">From the back</item>
             </items>
           </object>
           <packing>

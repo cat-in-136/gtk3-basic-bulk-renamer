@@ -36,12 +36,12 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="active">0</property>
-            <property name="active_id">modified</property>
+            <property name="active_id">Modified</property>
             <items>
-              <item id="current" translatable="yes">Current</item>
-              <item id="accessed" translatable="yes">Date Accessed</item>
-              <item id="modified" translatable="yes">Date Modified</item>
-              <item id="picture-taken" translatable="yes">Date Picture Taken</item>
+              <item id="Current" translatable="yes">Current</item>
+              <item id="Accessed" translatable="yes">Date Accessed</item>
+              <item id="Modified" translatable="yes">Date Modified</item>
+              <item id="PictureToken" translatable="yes">Date Picture Taken</item>
             </items>
           </object>
           <packing>
@@ -120,10 +120,10 @@
           <object class="GtkComboBoxText" id="at-position-combo-box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="active_id">front</property>
+            <property name="active_id">Front</property>
             <items>
-              <item id="front" translatable="yes">From the front</item>
-              <item id="back" translatable="yes">From the back</item>
+              <item id="Front" translatable="yes">From the front</item>
+              <item id="Back" translatable="yes">From the back</item>
             </items>
           </object>
           <packing>

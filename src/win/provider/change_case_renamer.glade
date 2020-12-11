@@ -29,17 +29,17 @@
           <object class="GtkComboBoxText" id="change-case-combo-box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="active_id">uppercase</property>
+            <property name="active_id">Uppercase</property>
             <items>
-              <item id="uppercase" translatable="yes">UPPERCASE</item>
-              <item id="lowercase" translatable="yes">lowercase</item>
-              <item id="firstletteruppercase" translatable="yes">First letter uppercase</item>
-              <item id="camelcase" translatable="yes">CamelCase</item>
-              <item id="snakecase" translatable="yes">snake_case</item>
-              <item id="kebabcase" translatable="yes">kebab-case</item>
-              <item id="shoutysnakecase" translatable="yes">SHOUTY_SNAKE_CASE</item>
-              <item id="mixedcase" translatable="yes">mixedCase</item>
-              <item id="titlecase" translatable="yes">Title Case</item>
+              <item id="Uppercase" translatable="yes">UPPERCASE</item>
+              <item id="Lowercase" translatable="yes">lowercase</item>
+              <item id="FirstLetterUppercase" translatable="yes">First letter uppercase</item>
+              <item id="CamelCase" translatable="yes">CamelCase</item>
+              <item id="SnakeCase" translatable="yes">snake_case</item>
+              <item id="KebabCase" translatable="yes">kebab-case</item>
+              <item id="ShoutySnakeCase" translatable="yes">SHOUTY_SNAKE_CASE</item>
+              <item id="MixedCase" translatable="yes">mixedCase</item>
+              <item id="TitleCase" translatable="yes">Title Case</item>
             </items>
           </object>
           <packing>

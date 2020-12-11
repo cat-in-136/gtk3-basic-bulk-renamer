@@ -12,8 +12,10 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::time::SystemTime;
 use std::vec::IntoIter;
+use strum_macros::EnumString;
 
 const ID_DATE_TIME_RENAMER_PANEL: &'static str = "date-time-renamer-panel";
 const ID_INSERT_TIME_COMBO_BOX: &'static str = "insert-time-combo-box";
@@ -21,7 +23,7 @@ const ID_FORMAT_ENTRY: &'static str = "format-entry";
 const ID_AT_POSITION_SPINNER_BUTTON: &'static str = "at-position-spin-button";
 const ID_AT_POSITION_COMBO_BOX: &'static str = "at-position-combo-box";
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, EnumString)]
 enum InsertTimeKind {
     Current,
     Accessed,
@@ -90,25 +92,14 @@ impl DateTimeRenamer {
         let at_position_spin_button = self.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
         let at_position_combo_box = self.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
-        let insert_time_kind =
-            insert_time_combo_box
-                .get_active_id()
-                .and_then(|id| match id.as_str() {
-                    "current" => Some(InsertTimeKind::Current),
-                    "accessed" => Some(InsertTimeKind::Accessed),
-                    "modified" => Some(InsertTimeKind::Modified),
-                    "picture-taken" => Some(InsertTimeKind::PictureToken),
-                    _ => None,
-                })?;
+        let insert_time_kind = insert_time_combo_box
+            .get_active_id()
+            .and_then(|id| InsertTimeKind::from_str(id.as_str()).ok())?;
         let pos = usize::try_from(at_position_spin_button.get_value_as_int()).unwrap_or(0);
         let insert_position = InsertPosition(
             at_position_combo_box
                 .get_active_id()
-                .and_then(|id| match id.as_str() {
-                    "front" => Some(TextCharPosition::Front(pos)),
-                    "back" => Some(TextCharPosition::Back(pos)),
-                    _ => None,
-                })?,
+                .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?,
             TextInsertOrOverwrite::Insert,
         );
 
