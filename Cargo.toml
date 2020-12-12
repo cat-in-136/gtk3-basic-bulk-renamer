@@ -3,9 +3,9 @@ name = "gtk3-basic-bulk-renamer"
 version = "0.1.0"
 description = "Simple Bulk Renamer on GTK+"
 authors = ["@cat_in_136"]
+license = "MIT"
+keywords = ["renamer", "gtk", "gui"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 gio= "0.9.0"
@@ -26,3 +26,24 @@ features = ["v3_16"]
 [dev-dependencies]
 gtk-test = "0.6.1"
 lazy_static = "*"
+
+[package.metadata.deb]
+license-file = ["LICENSE.txt"]
+depends = "$auto"
+priority = "optional"
+assets = [
+    ["target/release/gtk3-basic-bulk-renamer", "usr/bin/", "755"],
+    ["LICENSE.txt", "usr/share/doc/gtk3-basic-bulk-renamer/LICENSE.txt", "644"],
+    ["gtk3-basic-bulk-renamer.svg", "usr/share/pixmaps", "644"],
+    ["gtk3-basic-bulk-renamer.desktop", "usr/share/applications", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/gtk3-basic-bulk-renamer", dest = "/usr/bin/gtk3-basic-bulk-renamer", mode = "755" },
+    { source = "LICENSE.txt", dest = "/usr/share/doc/gtk3-basic-bulk-renamer/LICENSE.txt", mode = "644", doc = true },
+    { source = "gtk3-basic-bulk-renamer.svg", dest = "/usr/share/pixmaps/gtk3-basic-bulk-renamer.svg", mode = "644" },
+    { source = "gtk3-basic-bulk-renamer.desktop", dest = "/usr/share/applications/gtk3-basic-bulk-renamer.desktop", mode = "644" },
+]
+post_install_script = "update-desktop-database &> /dev/null"
+postun_install_script = "update-desktop-database &> /dev/null"

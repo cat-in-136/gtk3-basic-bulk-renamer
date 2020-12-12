@@ -1,0 +1,11 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Gtk3 Basic Bulk Renamer
+GenericName=Bulk Rename
+Exec=gtk3-basic-bulk-renamer
+Icon=gtk3-basic-bulk-renamer
+Terminal=false
+StartupNotify=true
+Categories=System;Utility;Core;GTK;Filesystem;
