@@ -1,5 +1,5 @@
 [package]
-name = "gtk-basic-bulk-renamer"
+name = "gtk3-basic-bulk-renamer"
 version = "0.1.0"
 description = "Simple Bulk Renamer on GTK+"
 authors = ["@cat_in_136"]
