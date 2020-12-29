@@ -1,7 +1,8 @@
 use std::ffi::OsString;
+use std::fs;
 use std::io::Error as IoError;
 use std::path::PathBuf;
-use std::{error, fmt, fs};
+use thiserror;
 
 /// Rename Mapping Pair
 ///
@@ -259,61 +260,28 @@ mod test {
 }
 
 /// Rename processing error
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum RenameError {
     /// Already renaming executed
+    #[error("Already Executed")]
     Executed,
     /// Some source files was not found.
+    #[error("Source Not Found: {}", .0
+        .iter()
+        .map(|(source, _)| source.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", "))]
     SourceFileNotFound(Vec<RenameMapPair>),
     /// Target files is already available.
+    #[error("Target File Already Exists: {}", (.0).1.display().to_string())]
     TargetFileAlreadyExists(RenameMapPair),
     /// Directory is not writable
-    TargetDirectoryNotWritable(RenameMapPair, IoError),
+    #[error("Target Directory Not Writable: {}", (.0).1.display().to_string())]
+    TargetDirectoryNotWritable(RenameMapPair, #[source] IoError),
     /// General IO Error
-    IoError(RenameMapPair, IoError),
+    #[error("IO Error: {} -> {}", (.0).0.display().to_string(), (.0).1.display().to_string())]
+    IoError(RenameMapPair, #[source] IoError),
     /// General Operation Error
+    #[error("Illegal Format")]
     IllegalOperation,
-}
-
-impl error::Error for RenameError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            RenameError::Executed => None,
-            RenameError::SourceFileNotFound(_) => None,
-            RenameError::TargetFileAlreadyExists(_) => None,
-            RenameError::TargetDirectoryNotWritable(_, error) => Some(error),
-            RenameError::IoError(_, error) => Some(error),
-            RenameError::IllegalOperation => None,
-        }
-    }
-}
-
-impl fmt::Display for RenameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RenameError::Executed => f.write_str("Already Executed"),
-            RenameError::SourceFileNotFound(pairs) => f.write_fmt(format_args!(
-                "Source Not Found: {}",
-                pairs
-                    .iter()
-                    .map(|(source, _)| source.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )),
-            RenameError::TargetFileAlreadyExists(pair) => f.write_fmt(format_args!(
-                "Target File Already Exists: {}",
-                pair.1.display().to_string()
-            )),
-            RenameError::TargetDirectoryNotWritable(pair, _error) => f.write_fmt(format_args!(
-                "Target Directory Not Writable: {}",
-                pair.1.display().to_string()
-            )),
-            RenameError::IoError(pair, _error) => f.write_fmt(format_args!(
-                "IO Error: {} -> {}",
-                pair.0.display().to_string(),
-                pair.1.display().to_string()
-            )),
-            RenameError::IllegalOperation => f.write_str("Illegal Format"),
-        }
-    }
 }
