@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 mod file_list;
 mod provider;
+mod resource;
 mod window;
 
 pub fn create<P: IsA<Application>>(app: Option<&P>) -> ApplicationWindow {

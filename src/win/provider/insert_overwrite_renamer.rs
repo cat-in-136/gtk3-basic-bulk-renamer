@@ -4,6 +4,7 @@ use crate::utils::{
 };
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
+use crate::win::resource::resource_path;
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, Entry, SpinButton};
 use std::convert::TryFrom;
@@ -24,7 +25,8 @@ pub struct InsertOverwriteRenamer {
 
 impl InsertOverwriteRenamer {
     pub fn new() -> Self {
-        let builder = Builder::from_string(include_str!("insert_overwrite_renamer.glade"));
+        let builder =
+            Builder::from_resource(&resource_path("provider/insert_overwrite_renamer.glade"));
         let change_subject = Rc::new(SubjectImpl::new());
         let renamer = Self {
             builder,

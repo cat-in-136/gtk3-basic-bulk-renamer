@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/github/cat-in-136/gtk3-basic-bulk-renamer">
+    <file compressed="true" preprocess="xml-stripblanks">window.glade</file>
+    <file compressed="true" preprocess="xml-stripblanks">provider/change_case_renamer.glade</file>
+    <file compressed="true" preprocess="xml-stripblanks">provider/date_time_renamer.glade</file>
+    <file compressed="true" preprocess="xml-stripblanks">provider/insert_overwrite_renamer.glade</file>
+    <file compressed="true" preprocess="xml-stripblanks">provider/remove_characters.glade</file>
+    <file compressed="true" preprocess="xml-stripblanks">provider/replace_renamer.glade</file>
+  </gresource>
+</gresources>
