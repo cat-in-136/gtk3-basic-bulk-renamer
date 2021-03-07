@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::utils::{split_file_at_dot, BulkTextReplacement, RemoveRangePosition, TextCharPosition};
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
+use crate::win::resource::resource_path;
 use gtk::prelude::*;
 use gtk::{Builder, ComboBoxText, Container, SpinButton};
 use std::convert::TryFrom;
@@ -21,7 +22,7 @@ pub struct RemoveCharactersRenamer {
 
 impl RemoveCharactersRenamer {
     pub fn new() -> Self {
-        let builder = Builder::from_string(include_str!("remove_characters.glade"));
+        let builder = Builder::from_resource(&resource_path("provider/remove_characters.glade"));
         let change_subject = Rc::new(SubjectImpl::new());
         let renamer = Self {
             builder,

@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::utils::split_file_at_dot;
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
+use crate::win::resource::resource_path;
 use gtk::prelude::*;
 use gtk::{Builder, ComboBox, Container};
 use heck::*;
@@ -50,7 +51,7 @@ pub struct ChangeCaseRenamer {
 
 impl ChangeCaseRenamer {
     pub fn new() -> Self {
-        let builder = Builder::from_string(include_str!("change_case_renamer.glade"));
+        let builder = Builder::from_resource(&resource_path("provider/change_case_renamer.glade"));
         let change_subject = Rc::new(SubjectImpl::new());
         let renamer = Self {
             builder,

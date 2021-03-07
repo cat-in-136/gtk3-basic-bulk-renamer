@@ -7,6 +7,7 @@ use crate::win::file_list::{
     reset_renaming_of_file_list, set_files_to_file_list, RenamerTarget,
 };
 use crate::win::provider::{Provider, RenamerObserverArg, RenamerType};
+use crate::win::resource::{init_resource, resource_path};
 use gdk::DragAction;
 use gio::prelude::*;
 use gio::SimpleAction;
@@ -46,7 +47,9 @@ pub(crate) struct Window {
 
 impl Window {
     pub fn new<P: IsA<Application>>(app: Option<&P>) -> Self {
-        let builder = Builder::from_string(include_str!("window.glade"));
+        init_resource();
+
+        let builder = Builder::from_resource(&resource_path("window.glade"));
         let provider = Rc::new(Provider::new());
         let window = Self { builder, provider };
 

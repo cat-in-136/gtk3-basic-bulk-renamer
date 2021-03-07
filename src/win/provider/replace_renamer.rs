@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::utils::split_file_at_dot;
 use crate::utils::{Observer, SubjectImpl};
 use crate::win::provider::{Renamer, RenamerObserverArg, RenamerTarget, RenamerType};
+use crate::win::resource::resource_path;
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry, EntryIconPosition};
 use regex::{Regex, RegexBuilder};
@@ -28,7 +29,7 @@ pub struct ReplaceRenamer {
 
 impl ReplaceRenamer {
     pub fn new() -> Self {
-        let builder = Builder::from_string(include_str!("replace_renamer.glade"));
+        let builder = Builder::from_resource(&resource_path("provider/replace_renamer.glade"));
         let change_subject = Rc::new(SubjectImpl::new());
         let renamer = Self {
             builder,
