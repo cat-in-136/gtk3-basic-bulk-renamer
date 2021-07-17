@@ -14,8 +14,8 @@ use gio::SimpleAction;
 use gtk::prelude::*;
 use gtk::{
     Application, ApplicationWindow, Builder, ButtonsType, ComboBoxText, DestDefaults,
-    FileChooserAction, FileChooserDialogBuilder, LabelBuilder, ListStore, MessageDialogBuilder,
-    MessageType, Notebook, ResponseType, TargetEntry, TargetFlags, TreeView,
+    FileChooserAction, FileChooserDialogBuilder, ListStore, MessageDialogBuilder, MessageType,
+    ResponseType, Stack, TargetEntry, TargetFlags, TreeView,
 };
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -31,8 +31,8 @@ const ACTION_EXECUTE: &'static str = "execute-action";
 const ID_FILE_LIST: &'static str = "file-list";
 const ID_FILE_LIST_STORE: &'static str = "file-list-store";
 const ID_MAIN_WINDOW: &'static str = "main-window";
-const ID_NOTEBOOK: &'static str = "notebook";
 const ID_RENAME_TARGET_COMBO_BOX: &'static str = "rename-target-combo-box";
+const ID_PROVIDER_STACK: &'static str = "provider-stack";
 
 macro_rules! generate_clones {
     ($($n:ident),+) => (
@@ -80,8 +80,8 @@ impl Window {
         let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
         let file_list = self.get_object::<TreeView>(ID_FILE_LIST);
         let selection = file_list.clone().get_selection();
-        let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
         let rename_target_combo_box = self.get_object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX);
+        let provider_stack = self.get_object::<Stack>(ID_PROVIDER_STACK);
 
         let renamer_change_observer = Rc::new(RenamerChangeObserver {
             builder: self.builder.clone(),
@@ -94,7 +94,7 @@ impl Window {
             generate_clones!(
                 main_window,
                 file_list_store,
-                notebook,
+                provider_stack,
                 renamer_change_observer
             );
             add_action.connect_activate(move |_, _| {
@@ -116,7 +116,10 @@ impl Window {
                     let paths = dialog.get_filenames();
                     add_files_to_file_list(&file_list_store, &paths);
 
-                    let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
+                    let renamer_type = provider_stack
+                        .get_visible_child_name()
+                        .and_then(|v| RenamerType::from_str(v.as_str()).ok())
+                        .unwrap_or(RenamerType::Replace);
                     renamer_change_observer
                         .update(&(renamer_type, ()))
                         .unwrap_or_else(|_| {
@@ -152,7 +155,7 @@ impl Window {
             generate_clones!(
                 main_window,
                 file_list_store,
-                notebook,
+                provider_stack,
                 renamer_change_observer
             );
             execute_action.connect_activate(move |_, _| {
@@ -165,7 +168,10 @@ impl Window {
                         let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
                         file_list_store.clear();
                         add_files_to_file_list(&file_list_store, &new_files);
-                        let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
+                        let renamer_type = provider_stack
+                            .get_visible_child_name()
+                            .and_then(|v| RenamerType::from_str(v.as_str()).ok())
+                            .unwrap_or(RenamerType::Replace);
                         renamer_change_observer.update(&(renamer_type, ()))
                     })
                     .or_else(|e| {
@@ -234,10 +240,11 @@ impl Window {
         update_action_enabled.clone().borrow_mut()();
 
         {
-            generate_clones!(file_list_store, notebook, renamer_change_observer);
-            notebook.connect_switch_page(move |_, _, page_id| {
-                let renamer_type = RenamerType::iter()
-                    .nth(page_id as usize)
+            generate_clones!(file_list_store, renamer_change_observer);
+            provider_stack.connect_property_visible_notify(move |provider_stack| {
+                let renamer_type = provider_stack
+                    .get_visible_child_name()
+                    .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
                     .update(&(renamer_type, ()))
@@ -247,10 +254,11 @@ impl Window {
             });
         }
         {
-            generate_clones!(file_list_store, notebook, renamer_change_observer);
+            generate_clones!(file_list_store, provider_stack, renamer_change_observer);
             rename_target_combo_box.connect_changed(move |_| {
-                let renamer_type = RenamerType::iter()
-                    .nth(notebook.get_current_page().unwrap_or(0) as usize)
+                let renamer_type = provider_stack
+                    .get_visible_child_name()
+                    .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
                     .update(&(renamer_type, ()))
@@ -272,7 +280,10 @@ impl Window {
                 move |_file_list, _c, _x, _y, sel_data, _info, _time| {
                     let paths = get_path_from_selection_data(&sel_data);
                     add_files_to_file_list(&file_list_store, &paths);
-                    let renamer_type = Self::get_renamer_type_from_notebook(&notebook);
+                    let renamer_type = provider_stack
+                        .get_visible_child_name()
+                        .and_then(|v| RenamerType::from_str(v.as_str()).ok())
+                        .unwrap_or(RenamerType::Replace);
                     renamer_change_observer
                         .update(&(renamer_type, ()))
                         .unwrap_or_else(|_| {
@@ -284,12 +295,14 @@ impl Window {
     }
 
     fn init_provider_panels(&self) {
-        let notebook = self.get_object::<Notebook>(ID_NOTEBOOK);
+        let provider_stack = self.get_object::<Stack>(ID_PROVIDER_STACK);
         for renamer_type in RenamerType::iter() {
+            let name = renamer_type.into();
+            let title = renamer_type.label();
             let renamer = self.provider.renamer_of(renamer_type);
-            let tab_label = LabelBuilder::new().label(renamer_type.label()).build();
             let panel = renamer.get_panel();
-            notebook.append_page(&panel, Some(&tab_label));
+
+            provider_stack.add_titled(&panel, name, title);
         }
     }
 
@@ -300,13 +313,6 @@ impl Window {
 
     pub fn main_window(&self) -> ApplicationWindow {
         self.get_object(ID_MAIN_WINDOW)
-    }
-
-    fn get_renamer_type_from_notebook(notebook: &Notebook) -> RenamerType {
-        notebook
-            .get_current_page()
-            .and_then(|v| RenamerType::iter().nth(v as usize))
-            .unwrap_or(RenamerType::Replace)
     }
 }
 
