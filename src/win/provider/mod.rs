@@ -9,7 +9,7 @@ use crate::win::provider::replace_renamer::ReplaceRenamer;
 use gtk::Container;
 use std::rc::Rc;
 use std::vec::IntoIter;
-use strum_macros::EnumIter;
+use strum_macros::{EnumIter, EnumString, IntoStaticStr};
 
 mod change_case_renamer;
 mod date_time_renamer;
@@ -32,7 +32,7 @@ pub(crate) trait Renamer {
 
 pub(crate) type RenamerObserverArg = (RenamerType, ());
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, EnumIter)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, EnumIter, EnumString, IntoStaticStr)]
 #[repr(C)]
 pub(crate) enum RenamerType {
     Replace = 0,
