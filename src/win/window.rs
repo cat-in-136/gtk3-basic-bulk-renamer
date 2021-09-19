@@ -33,6 +33,7 @@ const ID_FILE_LIST_STORE: &'static str = "file-list-store";
 const ID_MAIN_WINDOW: &'static str = "main-window";
 const ID_RENAME_TARGET_COMBO_BOX: &'static str = "rename-target-combo-box";
 const ID_PROVIDER_STACK: &'static str = "provider-stack";
+const ID_PROVIDER_SWITCHER_COMBO_BOX: &'static str = "provider-switcher-combo-box";
 
 macro_rules! generate_clones {
     ($($n:ident),+) => (
@@ -296,6 +297,7 @@ impl Window {
 
     fn init_provider_panels(&self) {
         let provider_stack = self.get_object::<Stack>(ID_PROVIDER_STACK);
+        let provider_switcher_combo_box = self.get_object::<ComboBoxText>(ID_PROVIDER_SWITCHER_COMBO_BOX);
         for renamer_type in RenamerType::iter() {
             let name = renamer_type.into();
             let title = renamer_type.label();
@@ -303,7 +305,20 @@ impl Window {
             let panel = renamer.get_panel();
 
             provider_stack.add_titled(&panel, name, title);
+            provider_switcher_combo_box.append(Some(name), title);
         }
+        provider_switcher_combo_box.set_active_id(Some(RenamerType::Replace.into()));
+
+        {
+            generate_clones!(provider_stack);
+            provider_switcher_combo_box.connect_changed(move |provider_switcher_combo_box| {
+                if let Some(active_id) = provider_switcher_combo_box.get_active_id() {
+                    provider_stack.set_visible_child_name(active_id.as_str());
+                }
+            });
+        }
+
+
     }
 
     pub fn set_files(&self, paths: &[PathBuf]) {
