@@ -17,7 +17,6 @@ use gtk::{
     FileChooserAction, FileChooserDialogBuilder, ListStore, MessageDialogBuilder, MessageType,
     ResponseType, Stack, TargetEntry, TargetFlags, TreeView,
 };
-use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
@@ -34,12 +33,6 @@ const ID_MAIN_WINDOW: &'static str = "main-window";
 const ID_RENAME_TARGET_COMBO_BOX: &'static str = "rename-target-combo-box";
 const ID_PROVIDER_STACK: &'static str = "provider-stack";
 const ID_PROVIDER_SWITCHER_COMBO_BOX: &'static str = "provider-switcher-combo-box";
-
-macro_rules! generate_clones {
-    ($($n:ident),+) => (
-        $( let $n = $n.clone(); )+
-    )
-}
 
 pub(crate) struct Window {
     builder: Builder,
@@ -91,158 +84,133 @@ impl Window {
         self.provider.attach_change(renamer_change_observer.clone());
 
         let add_action = SimpleAction::new(ACTION_ADD, None);
-        {
-            generate_clones!(
-                main_window,
-                file_list_store,
-                provider_stack,
+        add_action.connect_activate(glib::clone!(
+            @weak main_window,
+            @weak file_list_store,
+            @weak provider_stack,
+            @weak renamer_change_observer => move |_, _| {
+            let dialog = FileChooserDialogBuilder::new()
+                .title("Add")
+                .application(&main_window.get_application().unwrap())
+                .select_multiple(true)
+                .mnemonics_visible(true)
+                .action(FileChooserAction::Open)
+                .build();
+            dialog.add_buttons(&[
+                ("_Cancel", ResponseType::Cancel),
+                ("_OK", ResponseType::Accept),
+            ]);
+            let result = dialog.run();
+            dialog.close();
+
+            if result == ResponseType::Accept {
+                let paths = dialog.get_filenames();
+                add_files_to_file_list(&file_list_store, &paths);
+
+                let renamer_type = provider_stack
+                    .get_visible_child_name()
+                    .and_then(|v| RenamerType::from_str(v.as_str()).ok())
+                    .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
-            );
-            add_action.connect_activate(move |_, _| {
-                let dialog = FileChooserDialogBuilder::new()
-                    .title("Add")
-                    .application(&main_window.get_application().unwrap())
-                    .select_multiple(true)
-                    .mnemonics_visible(true)
-                    .action(FileChooserAction::Open)
-                    .build();
-                dialog.add_buttons(&[
-                    ("_Cancel", ResponseType::Cancel),
-                    ("_OK", ResponseType::Accept),
-                ]);
-                let result = dialog.run();
-                dialog.close();
+                    .update(&(renamer_type, ()))
+                    .unwrap_or_else(|_| {
+                        reset_renaming_of_file_list(&file_list_store);
+                    });
+            }
+        }));
+        main_window.add_action(&add_action);
 
-                if result == ResponseType::Accept {
-                    let paths = dialog.get_filenames();
-                    add_files_to_file_list(&file_list_store, &paths);
+        let remove_action = SimpleAction::new(ACTION_REMOVE, None);
+        remove_action.connect_activate(
+            glib::clone!(@weak file_list_store, @weak selection => move |_, _| {
+                selection.selected_foreach(|_, _, iter| {
+                    file_list_store.remove(iter);
+                });
+            }),
+        );
+        main_window.add_action(&remove_action);
 
+        let clear_action = SimpleAction::new(ACTION_CLEAR, None);
+        clear_action.connect_activate(glib::clone!(@weak file_list_store => move |_, _| {
+            file_list_store.clear();
+        }));
+        main_window.add_action(&clear_action);
+
+        let execute_action = SimpleAction::new(ACTION_EXECUTE, None);
+        execute_action.connect_activate(glib::clone!(
+            @weak main_window,
+            @weak file_list_store,
+            @weak provider_stack,
+            @weak renamer_change_observer => move |_, _| {
+            let files = get_files_from_file_list(&file_list_store).collect::<Vec<_>>();
+            let mut renamer = BulkRename::new(files.clone());
+            renamer
+                .execute(RenameOverwriteMode::Error)
+                .map_err(|e| Error::Rename(e))
+                .and_then(|_| {
+                    let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
+                    file_list_store.clear();
+                    add_files_to_file_list(&file_list_store, &new_files);
                     let renamer_type = provider_stack
                         .get_visible_child_name()
                         .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                         .unwrap_or(RenamerType::Replace);
-                    renamer_change_observer
-                        .update(&(renamer_type, ()))
-                        .unwrap_or_else(|_| {
-                            reset_renaming_of_file_list(&file_list_store);
+                    renamer_change_observer.update(&(renamer_type, ()))
+                })
+                .or_else(|e| {
+                    let undo_error = renamer
+                        .undo_bulk_rename()
+                        .ok_or(RenameError::IllegalOperation)
+                        .and_then(|mut undo_renamer| {
+                            undo_renamer.execute(RenameOverwriteMode::Error)
                         });
-                }
-            });
-        }
-        main_window.add_action(&add_action);
+                    let detailed_message = format!(
+                        "{}\n{}",
+                        e.to_string(),
+                        match undo_error {
+                            Ok(_) => "Rename is not applied".to_string(),
+                            Err(undo_rename_error) => format!(
+                                "Rename is interrupted: {}",
+                                undo_rename_error.to_string()
+                            ),
+                        }
+                    );
 
-        let remove_action = SimpleAction::new(ACTION_REMOVE, None);
-        {
-            generate_clones!(file_list_store, selection);
-            remove_action.connect_activate(move |_, _| {
-                selection.selected_foreach(|_, _, iter| {
-                    file_list_store.remove(iter);
-                });
-            });
-        }
-        main_window.add_action(&remove_action);
-
-        let clear_action = SimpleAction::new(ACTION_CLEAR, None);
-        {
-            generate_clones!(file_list_store);
-            clear_action.connect_activate(move |_, _| {
-                file_list_store.clear();
-            });
-        }
-        main_window.add_action(&clear_action);
-
-        let execute_action = SimpleAction::new(ACTION_EXECUTE, None);
-        {
-            generate_clones!(
-                main_window,
-                file_list_store,
-                provider_stack,
-                renamer_change_observer
-            );
-            execute_action.connect_activate(move |_, _| {
-                let files = get_files_from_file_list(&file_list_store).collect::<Vec<_>>();
-                let mut renamer = BulkRename::new(files.clone());
-                renamer
-                    .execute(RenameOverwriteMode::Error)
-                    .map_err(|e| Error::Rename(e))
-                    .and_then(|_| {
-                        let new_files = files.iter().map(|v| v.1.clone()).collect::<Vec<_>>();
-                        file_list_store.clear();
-                        add_files_to_file_list(&file_list_store, &new_files);
-                        let renamer_type = provider_stack
-                            .get_visible_child_name()
-                            .and_then(|v| RenamerType::from_str(v.as_str()).ok())
-                            .unwrap_or(RenamerType::Replace);
-                        renamer_change_observer.update(&(renamer_type, ()))
-                    })
-                    .or_else(|e| {
-                        let undo_error = renamer
-                            .undo_bulk_rename()
-                            .ok_or(RenameError::IllegalOperation)
-                            .and_then(|mut undo_renamer| {
-                                undo_renamer.execute(RenameOverwriteMode::Error)
-                            });
-                        let detailed_message = format!(
-                            "{}\n{}",
-                            e.to_string(),
-                            match undo_error {
-                                Ok(_) => "Rename is not applied".to_string(),
-                                Err(undo_rename_error) => format!(
-                                    "Rename is interrupted: {}",
-                                    undo_rename_error.to_string()
-                                ),
-                            }
-                        );
-
-                        let dialog = MessageDialogBuilder::new()
-                            .application(&main_window.get_application().unwrap())
-                            .buttons(ButtonsType::Ok)
-                            .message_type(MessageType::Error)
-                            .text("Failed to rename")
-                            .secondary_text(detailed_message.as_str())
-                            .build();
-                        dialog.run();
-                        dialog.close();
-                        Err(())
-                    })
-                    .unwrap_or_default();
-            });
-        }
+                    let dialog = MessageDialogBuilder::new()
+                        .application(&main_window.get_application().unwrap())
+                        .buttons(ButtonsType::Ok)
+                        .message_type(MessageType::Error)
+                        .text("Failed to rename")
+                        .secondary_text(detailed_message.as_str())
+                        .build();
+                    dialog.run();
+                    dialog.close();
+                    Err(())
+                })
+                .unwrap_or_default();
+        }));
         main_window.add_action(&execute_action);
 
-        let update_action_enabled = {
-            generate_clones!(
-                file_list_store,
-                selection,
-                remove_action,
-                clear_action,
-                execute_action
-            );
-            Rc::new(RefCell::new(move || {
+        selection.connect_changed(glib::clone!(
+            @weak file_list_store,
+               @weak  selection,
+               @weak  remove_action,
+               @weak  clear_action,
+               @weak  execute_action => move |_| {
                 remove_action.set_enabled(selection.count_selected_rows() > 0);
                 clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
                 execute_action.set_enabled(file_list_store.iter_n_children(None) > 0);
-            }))
-        };
+            }
+        ));
+        file_list_store.connect_row_inserted(glib::clone!(@weak selection => move |_, _, _| {
+            selection.emit("changed", &[]).ok();
+        }));
+        file_list_store.connect_row_deleted(glib::clone!(@weak selection => move |_, _| {
+            selection.emit("changed", &[]).ok();
+        }));
+        selection.emit("changed", &[]).ok();
 
-        {
-            generate_clones!(update_action_enabled);
-            selection.connect_changed(move |_| update_action_enabled.borrow_mut()());
-        }
-        {
-            generate_clones!(update_action_enabled);
-            file_list_store
-                .connect_row_inserted(move |_, _, _| update_action_enabled.borrow_mut()());
-        }
-        {
-            generate_clones!(update_action_enabled);
-            file_list_store.connect_row_deleted(move |_, _| update_action_enabled.borrow_mut()());
-        }
-        update_action_enabled.clone().borrow_mut()();
-
-        {
-            generate_clones!(file_list_store, renamer_change_observer);
-            provider_stack.connect_property_visible_notify(move |provider_stack| {
+        provider_stack.connect_property_visible_child_notify(glib::clone!(@weak file_list_store, @weak renamer_change_observer => move |provider_stack| {
                 let renamer_type = provider_stack
                     .get_visible_child_name()
                     .and_then(|v| RenamerType::from_str(v.as_str()).ok())
@@ -252,11 +220,8 @@ impl Window {
                     .unwrap_or_else(|_| {
                         reset_renaming_of_file_list(&file_list_store);
                     });
-            });
-        }
-        {
-            generate_clones!(file_list_store, provider_stack, renamer_change_observer);
-            rename_target_combo_box.connect_changed(move |_| {
+            }));
+        rename_target_combo_box.connect_changed(glib::clone!(@weak file_list_store, @weak provider_stack, @weak renamer_change_observer => move |_| {
                 let renamer_type = provider_stack
                     .get_visible_child_name()
                     .and_then(|v| RenamerType::from_str(v.as_str()).ok())
@@ -266,8 +231,7 @@ impl Window {
                     .unwrap_or_else(|_| {
                         reset_renaming_of_file_list(&file_list_store);
                     });
-            });
-        }
+            }));
 
         let dnd_target_entries = &[
             TargetEntry::new("STRING", TargetFlags::empty(), 0),
@@ -275,10 +239,8 @@ impl Window {
             TargetEntry::new("text/uri-list", TargetFlags::empty(), 0),
         ];
         file_list.drag_dest_set(DestDefaults::ALL, dnd_target_entries, DragAction::COPY);
-        {
-            generate_clones!(renamer_change_observer);
-            file_list.connect_drag_data_received(
-                move |_file_list, _c, _x, _y, sel_data, _info, _time| {
+
+        file_list.connect_drag_data_received(glib::clone!(@weak renamer_change_observer => move |_file_list, _c, _x, _y, sel_data, _info, _time| {
                     let paths = get_path_from_selection_data(&sel_data);
                     add_files_to_file_list(&file_list_store, &paths);
                     let renamer_type = provider_stack
@@ -290,14 +252,13 @@ impl Window {
                         .unwrap_or_else(|_| {
                             reset_renaming_of_file_list(&file_list_store);
                         });
-                },
-            );
-        }
+                }));
     }
 
     fn init_provider_panels(&self) {
         let provider_stack = self.get_object::<Stack>(ID_PROVIDER_STACK);
-        let provider_switcher_combo_box = self.get_object::<ComboBoxText>(ID_PROVIDER_SWITCHER_COMBO_BOX);
+        let provider_switcher_combo_box =
+            self.get_object::<ComboBoxText>(ID_PROVIDER_SWITCHER_COMBO_BOX);
         for renamer_type in RenamerType::iter() {
             let name = renamer_type.into();
             let title = renamer_type.label();
@@ -309,16 +270,13 @@ impl Window {
         }
         provider_switcher_combo_box.set_active_id(Some(RenamerType::Replace.into()));
 
-        {
-            generate_clones!(provider_stack);
-            provider_switcher_combo_box.connect_changed(move |provider_switcher_combo_box| {
+        provider_switcher_combo_box.connect_changed(
+            glib::clone!(@weak provider_stack => move |provider_switcher_combo_box| {
                 if let Some(active_id) = provider_switcher_combo_box.get_active_id() {
                     provider_stack.set_visible_child_name(active_id.as_str());
                 }
-            });
-        }
-
-
+            }),
+        );
     }
 
     pub fn set_files(&self, paths: &[PathBuf]) {

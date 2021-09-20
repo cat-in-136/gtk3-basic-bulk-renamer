@@ -6,7 +6,6 @@ use crate::win::resource::resource_path;
 use gtk::prelude::*;
 use gtk::{Builder, CheckButton, Container, Entry, EntryIconPosition};
 use regex::{Regex, RegexBuilder};
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec::IntoIter;
 
@@ -15,12 +14,6 @@ const ID_PATTERN_ENTRY: &'static str = "pattern-entry";
 const ID_REGEXP_SUPPORTED: &'static str = "regexp-supported";
 const ID_REPLACEMENT_ENTRY: &'static str = "replacement-entry";
 const ID_CASE_SENSITIVE: &'static str = "case-sensitive";
-
-macro_rules! generate_clones {
-    ($($n:ident),+) => (
-        $( let $n = $n.clone(); )+
-    )
-}
 
 pub struct ReplaceRenamer {
     builder: Builder,
@@ -46,74 +39,49 @@ impl ReplaceRenamer {
         let regexp_supported = self.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
         let replacement_entry = self.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
         let case_insensitive = self.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+        let change_subject = self.change_subject.clone();
 
-        let check_regexp = {
-            generate_clones!(pattern_entry, regexp_supported);
-            Rc::new(RefCell::new(move || {
-                let pattern = pattern_entry.get_text().to_string();
-                if regexp_supported.get_active() {
-                    if let Err(e) = RegexBuilder::new(pattern.as_str()).build() {
-                        let msg = e.to_string();
-                        pattern_entry
-                            .set_icon_from_icon_name(EntryIconPosition::Secondary, Some("error"));
-                        pattern_entry.set_icon_tooltip_text(
-                            EntryIconPosition::Secondary,
-                            Some(msg.as_str()),
-                        );
-                    } else {
-                        pattern_entry.set_icon_from_icon_name(EntryIconPosition::Secondary, None);
-                        pattern_entry.set_icon_tooltip_text(EntryIconPosition::Secondary, None);
-                    }
+        pattern_entry.connect_changed(glib::clone!(
+            @weak pattern_entry, @weak regexp_supported, @weak change_subject => move |_| {
+            // check regexp
+            let pattern = pattern_entry.get_text().to_string();
+            if regexp_supported.get_active() {
+                if let Err(e) = RegexBuilder::new(pattern.as_str()).build() {
+                    let msg = e.to_string();
+                    pattern_entry
+                        .set_icon_from_icon_name(EntryIconPosition::Secondary, Some("error"));
+                    pattern_entry.set_icon_tooltip_text(
+                        EntryIconPosition::Secondary,
+                        Some(msg.as_str()),
+                    );
                 } else {
                     pattern_entry.set_icon_from_icon_name(EntryIconPosition::Secondary, None);
                     pattern_entry.set_icon_tooltip_text(EntryIconPosition::Secondary, None);
                 }
-            }))
-        };
+            } else {
+                pattern_entry.set_icon_from_icon_name(EntryIconPosition::Secondary, None);
+                pattern_entry.set_icon_tooltip_text(EntryIconPosition::Secondary, None);
+            }
 
-        {
-            generate_clones!(check_regexp);
-            let change_subject = self.change_subject.clone();
-            pattern_entry.connect_changed(move |_| {
-                check_regexp.borrow_mut()();
-                change_subject
-                    .notify((RenamerType::Replace, ()))
-                    .unwrap_or_default();
-            });
-        }
+            change_subject
+                .notify((RenamerType::Replace, ()))
+                .unwrap_or_default();
+        }));
 
-        {
-            generate_clones!(check_regexp);
-            let change_subject = self.change_subject.clone();
-            regexp_supported.connect_toggled(move |_| {
-                check_regexp.borrow_mut()();
-                change_subject
-                    .notify((RenamerType::Replace, ()))
-                    .unwrap_or_default();
-            });
-        }
+        regexp_supported.connect_toggled(glib::clone!(
+            @weak pattern_entry => move |_| {
+                pattern_entry.emit("changed", &[]).unwrap();
+        }));
 
-        {
-            generate_clones!(check_regexp);
-            let change_subject = self.change_subject.clone();
-            replacement_entry.connect_changed(move |_| {
-                check_regexp.borrow_mut()();
-                change_subject
-                    .notify((RenamerType::Replace, ()))
-                    .unwrap_or_default();
-            });
-        }
+        replacement_entry.connect_changed(glib::clone!(
+            @weak pattern_entry => move |_| {
+                pattern_entry.emit("changed", &[]).unwrap();
+        }));
 
-        {
-            generate_clones!(check_regexp);
-            let change_subject = self.change_subject.clone();
-            case_insensitive.connect_toggled(move |_| {
-                check_regexp.borrow_mut()();
-                change_subject
-                    .notify((RenamerType::Replace, ()))
-                    .unwrap_or_default();
-            });
-        }
+        case_insensitive.connect_toggled(glib::clone!(
+            @weak pattern_entry => move |_| {
+                pattern_entry.emit("changed", &[]).unwrap();
+        }));
     }
 
     fn get_replacement_rule(&self) -> Result<(Regex, String), Error> {
