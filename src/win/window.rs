@@ -192,14 +192,19 @@ impl Window {
         main_window.add_action(&execute_action);
 
         selection.connect_changed(glib::clone!(
-            @weak file_list_store,
-               @weak  selection,
-               @weak  remove_action,
-               @weak  clear_action,
-               @weak  execute_action => move |_| {
+                @weak file_list_store,
+                @weak file_list,
+                @weak selection,
+                @weak remove_action,
+                @weak clear_action,
+                @weak execute_action => move |_| {
+                let file_list_store_count = file_list_store.iter_n_children(None);
+                if file_list_store_count == 0 {
+                    file_list.columns_autosize();
+                }
                 remove_action.set_enabled(selection.count_selected_rows() > 0);
-                clear_action.set_enabled(file_list_store.iter_n_children(None) > 0);
-                execute_action.set_enabled(file_list_store.iter_n_children(None) > 0);
+                clear_action.set_enabled(file_list_store_count > 0);
+                execute_action.set_enabled(file_list_store_count > 0);
             }
         ));
         file_list_store.connect_row_inserted(glib::clone!(@weak selection => move |_, _, _| {
