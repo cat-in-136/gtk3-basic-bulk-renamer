@@ -34,11 +34,11 @@ impl ChangeCaseKind {
             ChangeCaseKind::Uppercase => text.to_uppercase(),
             ChangeCaseKind::Lowercase => text.to_lowercase(),
             ChangeCaseKind::FirstLetterUppercase => text.to_first_letter_uppercase(),
-            ChangeCaseKind::CamelCase => text.to_camel_case(),
+            ChangeCaseKind::CamelCase => text.to_upper_camel_case(),
             ChangeCaseKind::SnakeCase => text.to_snake_case(),
             ChangeCaseKind::KebabCase => text.to_kebab_case(),
             ChangeCaseKind::ShoutySnakeCase => text.to_shouty_snake_case(),
-            ChangeCaseKind::MixedCase => text.to_mixed_case(),
+            ChangeCaseKind::MixedCase => text.to_lower_camel_case(),
             ChangeCaseKind::TitleCase => text.to_title_case(),
         }
     }
