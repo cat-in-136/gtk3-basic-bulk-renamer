@@ -87,6 +87,11 @@ impl BulkRename {
                 .keep()
                 .map_err(|_| RenameError::IllegalOperation)?;
 
+            if !pair.0.is_file() {
+                // Remove temp_file before moving because fs::rename does not work for directory.
+                fs::remove_file(&temp_file_path)
+                    .map_err(|error| RenameError::IoError(pair.clone(), error))?;
+            }
             fs::rename(&pair.0, &temp_file_path)
                 .map_err(|error| RenameError::IoError(pair.clone(), error))?;
             if let Some(undo_pairs) = self.undo_pairs.as_mut() {
@@ -115,6 +120,15 @@ impl BulkRename {
                 }
             }?;
 
+            if target_file.exists() && !(target_temp_file.is_file() && target_file.is_file()) {
+                // Remove target before moving because fs::rename does not work for directory.
+                if target_file.is_dir() {
+                    fs::remove_dir_all(&target_file)
+                } else {
+                    fs::remove_file(&target_file)
+                }
+                .map_err(|error| RenameError::IoError(pair.clone(), error))?;
+            }
             fs::rename(target_temp_file, &target_file)
                 .map_err(|error| RenameError::IoError(pair.clone(), error))?;
             if let Some(undo_pairs) = self.undo_pairs.as_mut() {
@@ -164,6 +178,7 @@ mod test {
 
     #[test]
     pub fn test_execute_when_conflicting() {
+        // for files
         for &mode in &[
             RenameOverwriteMode::ChangeFileName,
             RenameOverwriteMode::Overwrite,
@@ -200,6 +215,53 @@ mod test {
                     ));
                     assert!(matches!(&undo_pairs, Some(_vec)));
                     assert_eq!(undo_pairs.as_ref().unwrap()[0].1, file1_path);
+                }
+            }
+        }
+
+        // for directory
+        for &mode in &[
+            RenameOverwriteMode::ChangeFileName,
+            RenameOverwriteMode::Overwrite,
+            RenameOverwriteMode::Error,
+        ] {
+            let temp_dir = tempfile::tempdir().unwrap();
+
+            let dir1_path = path_buf_join(temp_dir.path(), "1.d");
+            fs::create_dir(&dir1_path).unwrap();
+            let file1_path = path_buf_join(&dir1_path, "1.txt");
+            fs::write(&file1_path, "1").unwrap();
+            let dir2_path = path_buf_join(temp_dir.path(), "2.d");
+            fs::create_dir(&dir2_path).unwrap();
+            let file2_path = path_buf_join(&dir2_path, "2.txt");
+            fs::write(&file2_path, "2").unwrap();
+            let rename_pair = (dir1_path.clone(), dir2_path.clone());
+
+            let mut rename = BulkRename::new(vec![rename_pair]);
+            let result = rename.execute(mode);
+            let undo_pairs = rename.undo_pairs;
+
+            match mode {
+                RenameOverwriteMode::ChangeFileName => {
+                    let new_dir_path = path_buf_join(temp_dir.path(), "_2.d");
+                    let new_file_path = path_buf_join(&new_dir_path, "1.txt");
+                    assert_eq!(fs::read_to_string(&new_file_path).unwrap(), "1");
+                    assert_eq!(fs::read_to_string(&file2_path).unwrap(), "2");
+                    assert_eq!(undo_pairs, Some(vec![(new_dir_path, dir1_path)]));
+                }
+                RenameOverwriteMode::Overwrite => {
+                    let new_dir_path = path_buf_join(temp_dir.path(), "2.d");
+                    let new_file_path = path_buf_join(&new_dir_path, "1.txt");
+                    assert_eq!(fs::read_to_string(&new_file_path).unwrap(), "1");
+                    assert_eq!(undo_pairs, None);
+                }
+                RenameOverwriteMode::Error => {
+                    assert!(matches!(
+                        result,
+                        Err(RenameError::TargetFileAlreadyExists(_pair))
+                    ));
+                    assert!(matches!(&undo_pairs, Some(_vec)));
+                    assert_eq!(undo_pairs.as_ref().unwrap()[0].1, dir1_path);
                 }
             }
         }
