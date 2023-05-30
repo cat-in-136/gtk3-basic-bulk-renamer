@@ -21,9 +21,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install xvfb; sudo apt-get install libgtk-3-dev libxdo-dev openbox
         
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Cache Cargo registry
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       env:
         cache-name: cache-cargo-registry
       with:
@@ -32,7 +32,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-stable-cargo-registry-
     - name: Cache Cargo index
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       env:
         cache-name: cache-cargo-index
       with:
