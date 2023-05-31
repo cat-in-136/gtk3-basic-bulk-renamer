@@ -36,10 +36,10 @@ impl RemoveCharactersRenamer {
 
     fn init_callback(&self) {
         let renamer_type = RenamerType::RemoveCharacters;
-        let remove_from_spin_button = self.get_object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
-        let remove_from_combo_box = self.get_object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
-        let remove_to_spin_button = self.get_object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
-        let remove_to_combo_box = self.get_object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
+        let remove_from_spin_button = self.object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
+        let remove_from_combo_box = self.object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
+        let remove_to_spin_button = self.object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
+        let remove_to_combo_box = self.object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
 
         let change_subject = self.change_subject.clone();
         remove_from_spin_button.connect_value_changed(move |_| {
@@ -71,19 +71,19 @@ impl RemoveCharactersRenamer {
     }
 
     fn get_replacement_rule(&self) -> Option<RemoveRangePosition> {
-        let remove_from_spin_button = self.get_object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
-        let remove_from_combo_box = self.get_object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
-        let remove_to_spin_button = self.get_object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
-        let remove_to_combo_box = self.get_object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
+        let remove_from_spin_button = self.object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
+        let remove_from_combo_box = self.object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
+        let remove_to_spin_button = self.object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
+        let remove_to_combo_box = self.object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
 
-        let pos = usize::try_from(remove_from_spin_button.get_value_as_int()).unwrap_or(0);
+        let pos = usize::try_from(remove_from_spin_button.value_as_int()).unwrap_or(0);
         let remove_from_position = remove_from_combo_box
-            .get_active_id()
+            .active_id()
             .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?;
 
-        let pos = usize::try_from(remove_to_spin_button.get_value_as_int()).unwrap_or(0);
+        let pos = usize::try_from(remove_to_spin_button.value_as_int()).unwrap_or(0);
         let remove_to_position = remove_to_combo_box
-            .get_active_id()
+            .active_id()
             .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?;
 
         Some(RemoveRangePosition(
@@ -126,14 +126,14 @@ impl RemoveCharactersRenamer {
             .into_iter()
     }
 
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 }
 
 impl Renamer for RemoveCharactersRenamer {
     fn get_panel(&self) -> Container {
-        self.get_object::<Container>(ID_REMOVE_CHARACTERS_RENAMER_PANEL)
+        self.object::<Container>(ID_REMOVE_CHARACTERS_RENAMER_PANEL)
     }
 
     fn apply_replacement(
@@ -154,25 +154,27 @@ impl Renamer for RemoveCharactersRenamer {
 mod test {
     use super::*;
     use crate::utils::CounterObserver;
-    use gtk::WindowBuilder;
+    use gtk::Window;
 
     #[test]
     fn test_insert_overwrite_renamer_callback() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let counter_observer = Rc::new(CounterObserver::new());
         let remove_characters_renamer = RemoveCharactersRenamer::new();
         let remove_from_spinner_button =
-            remove_characters_renamer.get_object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
+            remove_characters_renamer.object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
         let remove_from_combo_button =
-            remove_characters_renamer.get_object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
+            remove_characters_renamer.object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
         let remove_to_spinner_button =
-            remove_characters_renamer.get_object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
+            remove_characters_renamer.object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
         let remove_to_combo_button =
-            remove_characters_renamer.get_object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
+            remove_characters_renamer.object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
 
         remove_characters_renamer.attach_change(counter_observer.clone());
 
-        WindowBuilder::new()
+        Window::builder()
             .child(&remove_characters_renamer.get_panel())
             .build()
             .show_all();

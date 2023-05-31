@@ -31,7 +31,7 @@ pub(super) fn add_files_to_file_list(file_list_store: &ListStore, paths: &[PathB
         let parent = path.parent().unwrap().display().to_string();
 
         let iter = file_list_store.append();
-        file_list_store.set(&iter, &[0, 1, 2], &[&name, &new_name, &parent]);
+        file_list_store.set(&iter, &[(0, &name), (1, &new_name), (2, &parent)]);
     }
 }
 
@@ -52,8 +52,8 @@ pub(super) fn get_files_from_file_list(
 }
 
 pub(super) fn reset_renaming_of_file_list(file_list_store: &ListStore) {
-    if let Some(iter) = file_list_store.get_iter_first() {
-        let name = file_list_store.get_value(&iter, 0);
+    if let Some(iter) = file_list_store.iter_first() {
+        let name = file_list_store.value(&iter, 0);
         let new_name = name.clone();
         file_list_store.set_value(&iter, 1, &new_name);
     } else {
@@ -73,9 +73,9 @@ pub(super) fn apply_renamer_to_file_list(
     renamer
         .apply_replacement(data.as_slice(), target)
         .and_then(|replacements| {
-            if let Some(iter) = file_list_store.get_iter_first() {
+            if let Some(iter) = file_list_store.iter_first() {
                 for (new_file_name, _) in replacements {
-                    file_list_store.set(&iter, &[1], &[&new_file_name]);
+                    file_list_store.set(&iter, &[(1, &new_file_name)]);
                     file_list_store.iter_next(&iter);
                 }
                 Ok(())
@@ -101,7 +101,7 @@ mod test {
     use std::vec::IntoIter;
 
     fn list_store() -> ListStore {
-        ListStore::new(&[Type::String, Type::String, Type::String])
+        ListStore::new(&[Type::STRING, Type::STRING, Type::STRING])
     }
 
     struct TestRenamer {
@@ -144,7 +144,9 @@ mod test {
 
     #[test]
     fn test_add_files_to_file_list() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
 
         let file_list_store = list_store();
         assert_eq!(file_list_store.iter_n_children(None), 0);
@@ -157,35 +159,37 @@ mod test {
 
         let iter = file_list_store.iter_nth_child(None, 0).unwrap();
         assert_eq!(
-            file_list_store.get_value(&iter, 0).get(),
+            file_list_store.value(&iter, 0).get(),
             Ok(Some(String::from("test")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 1).get(),
+            file_list_store.value(&iter, 1).get(),
             Ok(Some(String::from("test")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 2).get(),
+            file_list_store.value(&iter, 2).get(),
             Ok(Some(String::from("")))
         );
         let iter = file_list_store.iter_nth_child(None, 1).unwrap();
         assert_eq!(
-            file_list_store.get_value(&iter, 0).get(),
+            file_list_store.value(&iter, 0).get(),
             Ok(Some(String::from("test2")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 1).get(),
+            file_list_store.value(&iter, 1).get(),
             Ok(Some(String::from("test2")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 2).get(),
+            file_list_store.value(&iter, 2).get(),
             Ok(Some(String::from("/")))
         );
     }
 
     #[test]
     fn test_get_files_from_file_list() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
 
         let file_list_store = list_store();
 
@@ -197,8 +201,11 @@ mod test {
         let iter = file_list_store.append();
         file_list_store.set(
             &iter,
-            &[0, 1, 2],
-            &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
+            &[
+                (0, &"test".to_string()),
+                (1, &"test2".to_string()),
+                (2, &"/".to_string()),
+            ],
         );
 
         assert_eq!(
@@ -212,11 +219,10 @@ mod test {
         let iter = file_list_store.append();
         file_list_store.set(
             &iter,
-            &[0, 1, 2],
             &[
-                &"test3".to_string(),
-                &"test4".to_string(),
-                &"/tmp".to_string(),
+                (0, &"test3".to_string()),
+                (1, &"test4".to_string()),
+                (2, &"/tmp".to_string()),
             ],
         );
 
@@ -237,38 +243,44 @@ mod test {
 
     #[test]
     fn test_reset_renaming_of_file_list() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
 
         let file_list_store = list_store();
 
         let iter = file_list_store.append();
         file_list_store.set(
             &iter,
-            &[0, 1, 2],
-            &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
+            &[
+                (0, &"test".to_string()),
+                (1, &"test2".to_string()),
+                (2, &"/".to_string()),
+            ],
         );
 
         reset_renaming_of_file_list(&file_list_store);
 
         let iter = file_list_store.iter_nth_child(None, 0).unwrap();
         assert_eq!(
-            file_list_store.get_value(&iter, 0).get(),
+            file_list_store.value(&iter, 0).get(),
             Ok(Some(String::from("test")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 1).get(),
+            file_list_store.value(&iter, 1).get(),
             Ok(Some(String::from("test")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 2).get(),
+            file_list_store.value(&iter, 2).get(),
             Ok(Some(String::from("/")))
         );
     }
 
     #[test]
     fn test_apply_renamer_to_file_list() {
-        gtk::init().unwrap();
-
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let file_list_store = list_store();
         let test_renamer = TestRenamer {
             prefix: "ABC".to_string(),
@@ -281,8 +293,11 @@ mod test {
         let iter = file_list_store.append();
         file_list_store.set(
             &iter,
-            &[0, 1, 2],
-            &[&"test".to_string(), &"test2".to_string(), &"/".to_string()],
+            &[
+                (0, &"test".to_string()),
+                (1, &"test2".to_string()),
+                (2, &"/".to_string()),
+            ],
         );
 
         apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
@@ -290,15 +305,15 @@ mod test {
 
         let iter = file_list_store.iter_nth_child(None, 0).unwrap();
         assert_eq!(
-            file_list_store.get_value(&iter, 0).get(),
+            file_list_store.value(&iter, 0).get(),
             Ok(Some(String::from("test")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 1).get(),
+            file_list_store.value(&iter, 1).get(),
             Ok(Some(String::from("ABC-test")))
         );
         assert_eq!(
-            file_list_store.get_value(&iter, 2).get(),
+            file_list_store.value(&iter, 2).get(),
             Ok(Some(String::from("/")))
         );
     }

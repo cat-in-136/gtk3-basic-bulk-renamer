@@ -14,21 +14,17 @@ pub(crate) use observer::test::CounterObserver;
 pub(crate) use observer::*;
 
 pub fn value2string(value: &Value) -> String {
-    value
-        .get::<String>()
-        .unwrap_or(None)
-        .unwrap_or_default()
-        .clone()
+    value.get::<String>().unwrap_or_default().clone()
 }
 
 pub fn list_store_data_iter(model: &ListStore) -> impl Iterator<Item = Vec<Value>> + '_ {
-    let n_column = model.get_n_columns();
+    let n_column = model.n_columns();
 
-    let mut current_iter = model.get_iter_first();
+    let mut current_iter = model.iter_first();
     iter::repeat_with(move || {
         if let Some(iter) = &current_iter {
             let value = (0..n_column)
-                .map(|column| model.get_value(&iter, column as i32))
+                .map(|column| model.value(&iter, column as i32))
                 .collect::<Vec<_>>();
             if !model.iter_next(&iter) {
                 current_iter = None
@@ -45,7 +41,7 @@ pub fn list_store_data_iter(model: &ListStore) -> impl Iterator<Item = Vec<Value
 pub(crate) fn get_path_from_selection_data(sel_data: &SelectionData) -> Vec<PathBuf> {
     if sel_data.targets_include_uri() {
         sel_data
-            .get_uris()
+            .uris()
             .iter()
             .filter_map(|v| {
                 filename_from_uri(v.as_str())
@@ -53,7 +49,7 @@ pub(crate) fn get_path_from_selection_data(sel_data: &SelectionData) -> Vec<Path
                     .ok()
             })
             .collect::<Vec<_>>()
-    } else if let Some(text) = sel_data.get_text() {
+    } else if let Some(text) = sel_data.text() {
         text.to_string()
             .lines()
             .filter_map(|v| {
@@ -91,7 +87,7 @@ pub(crate) fn split_file_at_dot(file: &str) -> (&str, Option<&str>) {
 mod test {
     use super::*;
     use glib::Type;
-    use gtk::{Clipboard, GtkListStoreExt, ListStore};
+    use gtk::Clipboard;
 
     #[test]
     fn test_value2string() {
@@ -101,8 +97,11 @@ mod test {
 
     #[test]
     fn test_list_store_data_iter() {
-        gtk::init().unwrap();
-        let list_store = ListStore::new(&[Type::String, Type::String]);
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
+
+        let list_store = ListStore::new(&[Type::STRING, Type::STRING]);
         assert_eq!(
             list_store_data_iter(&list_store).collect::<Vec<_>>().len(),
             0
@@ -112,25 +111,34 @@ mod test {
             let iter = list_store.append();
             list_store.set(
                 &iter,
-                &[0, 1],
-                &[&format!("{}", i).to_string(), &"dummy".to_string()],
+                &[
+                    (0, &format!("{}", i).to_string()),
+                    (1, &"dummy".to_string()),
+                ],
             );
         }
         assert_eq!(
             list_store_data_iter(&list_store)
-                .map(|v| v.iter().map(|v| v.get::<String>()).collect::<Vec<_>>())
-                .collect::<Vec<_>>(),
-            vec![
-                vec![Ok(Some("0".to_string())), Ok(Some("dummy".to_string()))],
-                vec![Ok(Some("1".to_string())), Ok(Some("dummy".to_string()))],
-                vec![Ok(Some("2".to_string())), Ok(Some("dummy".to_string()))],
+                .map(|v| v
+                    .iter()
+                    .map(|val| val.get::<String>())
+                    .map(|val| val.ok())
+                    .collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+                .as_slice(),
+            &[
+                vec![Some("0".to_string()), Some("dummy".to_string())],
+                vec![Some("1".to_string()), Some("dummy".to_string())],
+                vec![Some("2".to_string()), Some("dummy".to_string())],
             ]
         );
     }
 
     #[test]
     fn test_get_path_from_selection_data() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
 
         let clipboard = Clipboard::get(&gdk::SELECTION_CLIPBOARD);
         clipboard.clear();

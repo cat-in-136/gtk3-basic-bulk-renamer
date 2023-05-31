@@ -102,7 +102,9 @@ mod test {
 
     #[test]
     fn test_provider() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let provider = Provider::new();
 
         for renamer_type in RenamerType::iter() {
@@ -111,7 +113,7 @@ mod test {
             let panel = renamer.get_panel();
 
             assert!(label.len() > 0);
-            assert!(panel.get_children().len() > 0);
+            assert!(panel.children().len() > 0);
         }
     }
 }

@@ -53,10 +53,10 @@ impl DateTimeRenamer {
 
     fn init_callback(&self) {
         let renamer_type = RenamerType::DateTime;
-        let insert_time_combo_box = self.get_object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
-        let format_entry = self.get_object::<Entry>(ID_FORMAT_ENTRY);
-        let at_position_spin_button = self.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
-        let at_position_combo_box = self.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+        let insert_time_combo_box = self.object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
+        let format_entry = self.object::<Entry>(ID_FORMAT_ENTRY);
+        let at_position_spin_button = self.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+        let at_position_combo_box = self.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
         let change_subject = self.change_subject.clone();
         insert_time_combo_box.connect_changed(move |_| {
@@ -88,25 +88,25 @@ impl DateTimeRenamer {
     }
 
     fn get_replacement_rule(&self) -> Option<(InsertTimeKind, String, InsertPosition)> {
-        let insert_time_combo_box = self.get_object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
-        let format_entry = self.get_object::<Entry>(ID_FORMAT_ENTRY);
-        let at_position_spin_button = self.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
-        let at_position_combo_box = self.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+        let insert_time_combo_box = self.object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
+        let format_entry = self.object::<Entry>(ID_FORMAT_ENTRY);
+        let at_position_spin_button = self.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+        let at_position_combo_box = self.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
         let insert_time_kind = insert_time_combo_box
-            .get_active_id()
+            .active_id()
             .and_then(|id| InsertTimeKind::from_str(id.as_str()).ok())?;
-        let pos = usize::try_from(at_position_spin_button.get_value_as_int()).unwrap_or(0);
+        let pos = usize::try_from(at_position_spin_button.value_as_int()).unwrap_or(0);
         let insert_position = InsertPosition(
             at_position_combo_box
-                .get_active_id()
+                .active_id()
                 .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?,
             TextInsertOrOverwrite::Insert,
         );
 
         Some((
             insert_time_kind,
-            format_entry.get_text().to_string(),
+            format_entry.text().to_string(),
             insert_position,
         ))
     }
@@ -140,8 +140,8 @@ impl DateTimeRenamer {
                         .and_then(|v| match v.value {
                             exif::Value::Ascii(ref vec) if !vec.is_empty() => {
                                 exif::DateTime::from_ascii(&vec[0])
-                                    .map(|v| UnixTime::from(v))
                                     .ok()
+                                    .and_then(|v| UnixTime::try_from(v).ok())
                             }
                             _ => None,
                         })
@@ -196,14 +196,14 @@ impl DateTimeRenamer {
             .into_iter()
     }
 
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 }
 
 impl Renamer for DateTimeRenamer {
     fn get_panel(&self) -> Container {
-        self.get_object::<Container>(ID_DATE_TIME_RENAMER_PANEL)
+        self.object::<Container>(ID_DATE_TIME_RENAMER_PANEL)
     }
 
     fn apply_replacement(
@@ -231,26 +231,28 @@ mod test {
     use super::*;
     use crate::utils::CounterObserver;
     use crate::utils::InsertPosition;
-    use gtk::WindowBuilder;
+    use gtk::Window;
     use regex::RegexBuilder;
     use std::io::{BufWriter, Write};
 
     #[test]
     fn test_replace_renamer_callback() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let counter_observer = Rc::new(CounterObserver::new());
         let date_time_renamer = DateTimeRenamer::new();
         let insert_time_combo_box =
-            date_time_renamer.get_object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
-        let format_entry = date_time_renamer.get_object::<Entry>(ID_FORMAT_ENTRY);
+            date_time_renamer.object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
+        let format_entry = date_time_renamer.object::<Entry>(ID_FORMAT_ENTRY);
         let at_position_spin_button =
-            date_time_renamer.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+            date_time_renamer.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
         let at_position_combo_box =
-            date_time_renamer.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+            date_time_renamer.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
         date_time_renamer.attach_change(counter_observer.clone());
 
-        WindowBuilder::new()
+        Window::builder()
             .child(&date_time_renamer.get_panel())
             .build()
             .show_all();

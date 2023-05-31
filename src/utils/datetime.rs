@@ -1,16 +1,18 @@
-use glib::{DateTime, TimeZone};
+use glib::{BoolError, DateTime, TimeZone};
+use std::convert::TryFrom;
 use std::time::SystemTime;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct UnixTime(pub i64);
 
 impl UnixTime {
-    pub fn to_glib_date_time(&self) -> DateTime {
+    pub fn to_glib_date_time(&self) -> Result<DateTime, BoolError> {
         DateTime::from_unix_local(self.0)
     }
     pub fn format(&self, format: &str) -> Option<String> {
         self.to_glib_date_time()
-            .format(format)
+            .ok()
+            .and_then(|v| v.format(format).ok())
             .map(|v| v.to_string())
     }
 }
@@ -36,9 +38,11 @@ impl From<DateTime> for UnixTime {
     }
 }
 
-impl From<exif::DateTime> for UnixTime {
-    fn from(datetime: exif::DateTime) -> Self {
-        Self::from(DateTime::new(
+impl TryFrom<exif::DateTime> for UnixTime {
+    type Error = BoolError;
+
+    fn try_from(datetime: exif::DateTime) -> Result<Self, Self::Error> {
+        DateTime::new(
             &TimeZone::new(
                 datetime
                     .offset
@@ -58,7 +62,8 @@ impl From<exif::DateTime> for UnixTime {
             datetime.hour as i32,
             datetime.minute as i32,
             datetime.second as f64 + (datetime.nanosecond.unwrap_or_default() as f64 / 1000000.0),
-        ))
+        )
+        .map(|v| UnixTime::from(v))
     }
 }
 
