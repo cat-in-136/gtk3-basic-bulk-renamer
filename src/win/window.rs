@@ -14,8 +14,8 @@ use gio::SimpleAction;
 use gtk::prelude::*;
 use gtk::{
     Application, ApplicationWindow, Builder, ButtonsType, ComboBoxText, DestDefaults,
-    FileChooserAction, FileChooserDialogBuilder, ListStore, MessageDialogBuilder, MessageType,
-    ResponseType, Stack, TargetEntry, TargetFlags, TreeView,
+    FileChooserAction, FileChooserDialog, ListStore, MessageDialog, MessageType, ResponseType,
+    Stack, TargetEntry, TargetFlags, TreeView,
 };
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -56,12 +56,12 @@ impl Window {
         window
     }
 
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 
     #[cfg(test)]
-    fn get_simple_action(&self, name: &str) -> SimpleAction {
+    fn simple_action(&self, name: &str) -> SimpleAction {
         self.main_window()
             .lookup_action(name)
             .unwrap()
@@ -71,11 +71,11 @@ impl Window {
 
     fn init_actions_signals(&self) {
         let main_window = self.main_window();
-        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
-        let file_list = self.get_object::<TreeView>(ID_FILE_LIST);
-        let selection = file_list.clone().get_selection();
-        let rename_target_combo_box = self.get_object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX);
-        let provider_stack = self.get_object::<Stack>(ID_PROVIDER_STACK);
+        let file_list_store = self.object::<ListStore>(ID_FILE_LIST_STORE);
+        let file_list = self.object::<TreeView>(ID_FILE_LIST);
+        let selection = file_list.clone().selection();
+        let rename_target_combo_box = self.object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX);
+        let provider_stack = self.object::<Stack>(ID_PROVIDER_STACK);
 
         let renamer_change_observer = Rc::new(RenamerChangeObserver {
             builder: self.builder.clone(),
@@ -89,9 +89,9 @@ impl Window {
             @weak file_list_store,
             @weak provider_stack,
             @weak renamer_change_observer => move |_, _| {
-            let dialog = FileChooserDialogBuilder::new()
+            let dialog = FileChooserDialog::builder()
                 .title("Add")
-                .application(&main_window.get_application().unwrap())
+                .application(&main_window.application().unwrap())
                 .select_multiple(true)
                 .mnemonics_visible(true)
                 .action(FileChooserAction::Open)
@@ -104,11 +104,11 @@ impl Window {
             dialog.close();
 
             if result == ResponseType::Accept {
-                let paths = dialog.get_filenames();
+                let paths = dialog.filenames();
                 add_files_to_file_list(&file_list_store, &paths);
 
                 let renamer_type = provider_stack
-                    .get_visible_child_name()
+                    .visible_child_name()
                     .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
@@ -152,7 +152,7 @@ impl Window {
                     file_list_store.clear();
                     add_files_to_file_list(&file_list_store, &new_files);
                     let renamer_type = provider_stack
-                        .get_visible_child_name()
+                        .visible_child_name()
                         .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                         .unwrap_or(RenamerType::Replace);
                     renamer_change_observer.update(&(renamer_type, ()))
@@ -176,8 +176,8 @@ impl Window {
                         }
                     );
 
-                    let dialog = MessageDialogBuilder::new()
-                        .application(&main_window.get_application().unwrap())
+                    let dialog = MessageDialog::builder()
+                        .application(&main_window.application().unwrap())
                         .buttons(ButtonsType::Ok)
                         .message_type(MessageType::Error)
                         .text("Failed to rename")
@@ -207,16 +207,16 @@ impl Window {
             execute_action.set_enabled(file_list_store_count > 0);
         }));
         file_list_store.connect_row_inserted(glib::clone!(@weak selection => move |_, _, _| {
-            selection.emit("changed", &[]).ok();
+            selection.emit_by_name::<()>("changed", &[]);
         }));
         file_list_store.connect_row_deleted(glib::clone!(@weak selection => move |_, _| {
-            selection.emit("changed", &[]).ok();
+            selection.emit_by_name::<()>("changed", &[]);
         }));
-        selection.emit("changed", &[]).ok();
+        selection.emit_by_name::<()>("changed", &[]);
 
-        provider_stack.connect_property_visible_child_notify(glib::clone!(@weak file_list_store, @weak renamer_change_observer => move |provider_stack| {
+        provider_stack.connect_visible_child_notify(glib::clone!(@weak file_list_store, @weak renamer_change_observer => move |provider_stack| {
                 let renamer_type = provider_stack
-                    .get_visible_child_name()
+                    .visible_child_name()
                     .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
@@ -227,7 +227,7 @@ impl Window {
             }));
         rename_target_combo_box.connect_changed(glib::clone!(@weak file_list_store, @weak provider_stack, @weak renamer_change_observer => move |_| {
                 let renamer_type = provider_stack
-                    .get_visible_child_name()
+                    .visible_child_name()
                     .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                     .unwrap_or(RenamerType::Replace);
                 renamer_change_observer
@@ -248,7 +248,7 @@ impl Window {
                     let paths = get_path_from_selection_data(&sel_data);
                     add_files_to_file_list(&file_list_store, &paths);
                     let renamer_type = provider_stack
-                        .get_visible_child_name()
+                        .visible_child_name()
                         .and_then(|v| RenamerType::from_str(v.as_str()).ok())
                         .unwrap_or(RenamerType::Replace);
                     renamer_change_observer
@@ -260,9 +260,9 @@ impl Window {
     }
 
     fn init_provider_panels(&self) {
-        let provider_stack = self.get_object::<Stack>(ID_PROVIDER_STACK);
+        let provider_stack = self.object::<Stack>(ID_PROVIDER_STACK);
         let provider_switcher_combo_box =
-            self.get_object::<ComboBoxText>(ID_PROVIDER_SWITCHER_COMBO_BOX);
+            self.object::<ComboBoxText>(ID_PROVIDER_SWITCHER_COMBO_BOX);
         for renamer_type in RenamerType::iter() {
             let name = renamer_type.into();
             let title = renamer_type.label();
@@ -276,7 +276,7 @@ impl Window {
 
         provider_switcher_combo_box.connect_changed(
             glib::clone!(@weak provider_stack => move |provider_switcher_combo_box| {
-                if let Some(active_id) = provider_switcher_combo_box.get_active_id() {
+                if let Some(active_id) = provider_switcher_combo_box.active_id() {
                     provider_stack.set_visible_child_name(active_id.as_str());
                 }
             }),
@@ -284,12 +284,12 @@ impl Window {
     }
 
     pub fn set_files(&self, paths: &[PathBuf]) {
-        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
+        let file_list_store = self.object::<ListStore>(ID_FILE_LIST_STORE);
         set_files_to_file_list(&file_list_store, paths);
     }
 
     pub fn main_window(&self) -> ApplicationWindow {
-        self.get_object(ID_MAIN_WINDOW)
+        self.object(ID_MAIN_WINDOW)
     }
 }
 
@@ -298,20 +298,20 @@ struct RenamerChangeObserver {
     provider: Rc<Provider>,
 }
 impl RenamerChangeObserver {
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 }
 
 impl Observer<RenamerObserverArg, Error> for RenamerChangeObserver {
     fn update(&self, arg: &RenamerObserverArg) -> Result<(), Error> {
         let (renamer_type, _) = *arg;
-        let file_list_store = self.get_object::<ListStore>(ID_FILE_LIST_STORE);
+        let file_list_store = self.object::<ListStore>(ID_FILE_LIST_STORE);
         let provider = self.provider.clone();
         let renamer = provider.renamer_of(renamer_type);
         let target = self
-            .get_object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX)
-            .get_active_id()
+            .object::<ComboBoxText>(ID_RENAME_TARGET_COMBO_BOX)
+            .active_id()
             .and_then(|id| RenamerTarget::from_str(id.as_str()).ok())
             .unwrap_or(RenamerTarget::All);
         apply_renamer_to_file_list(&file_list_store, target, renamer)
@@ -324,45 +324,47 @@ mod test {
 
     #[test]
     fn test_init_actions_signals() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
 
         let win = Window::new::<Application>(None);
         win.main_window().show_all();
 
         assert_eq!(
-            win.get_object::<ListStore>(ID_FILE_LIST_STORE)
+            win.object::<ListStore>(ID_FILE_LIST_STORE)
                 .iter_n_children(None),
             0
         );
 
-        assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
-        assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), false);
-        assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), false);
-        assert_eq!(win.get_simple_action(ACTION_EXECUTE).get_enabled(), false);
+        assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), false);
+        assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), false);
+        assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), false);
 
         win.set_files(&[PathBuf::from("test")]);
         assert_eq!(
-            win.get_object::<ListStore>(ID_FILE_LIST_STORE)
+            win.object::<ListStore>(ID_FILE_LIST_STORE)
                 .iter_n_children(None),
             1
         );
 
-        assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
-        assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), false);
-        assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
-        assert_eq!(win.get_simple_action(ACTION_EXECUTE).get_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), false);
+        assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), true);
 
-        gtk_test::click(&win.get_object::<TreeView>(ID_FILE_LIST));
+        gtk_test::click(&win.object::<TreeView>(ID_FILE_LIST));
         assert_eq!(
-            win.get_object::<TreeView>(ID_FILE_LIST)
-                .get_selection()
+            win.object::<TreeView>(ID_FILE_LIST)
+                .selection()
                 .count_selected_rows(),
             1
         );
 
-        assert_eq!(win.get_simple_action(ACTION_ADD).get_enabled(), true);
-        assert_eq!(win.get_simple_action(ACTION_REMOVE).get_enabled(), true);
-        assert_eq!(win.get_simple_action(ACTION_CLEAR).get_enabled(), true);
-        assert_eq!(win.get_simple_action(ACTION_EXECUTE).get_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), true);
+        assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), true);
     }
 }

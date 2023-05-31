@@ -35,17 +35,17 @@ impl ReplaceRenamer {
     }
 
     fn init_callback(&self) {
-        let pattern_entry = self.get_object::<Entry>(ID_PATTERN_ENTRY);
-        let regexp_supported = self.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
-        let replacement_entry = self.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
-        let case_insensitive = self.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+        let pattern_entry = self.object::<Entry>(ID_PATTERN_ENTRY);
+        let regexp_supported = self.object::<CheckButton>(ID_REGEXP_SUPPORTED);
+        let replacement_entry = self.object::<Entry>(ID_REPLACEMENT_ENTRY);
+        let case_insensitive = self.object::<CheckButton>(ID_CASE_SENSITIVE);
         let change_subject = self.change_subject.clone();
 
         pattern_entry.connect_changed(glib::clone!(
             @weak pattern_entry, @weak regexp_supported, @weak change_subject => move |_| {
             // check regexp
-            let pattern = pattern_entry.get_text().to_string();
-            if regexp_supported.get_active() {
+            let pattern = pattern_entry.text().to_string();
+            if regexp_supported.is_active() {
                 if let Err(e) = RegexBuilder::new(pattern.as_str()).build() {
                     let msg = e.to_string();
                     pattern_entry
@@ -70,29 +70,25 @@ impl ReplaceRenamer {
 
         regexp_supported.connect_toggled(glib::clone!(
             @weak pattern_entry => move |_| {
-                pattern_entry.emit("changed", &[]).unwrap();
+                pattern_entry.emit_by_name::<()>("changed", &[]);
         }));
 
         replacement_entry.connect_changed(glib::clone!(
             @weak pattern_entry => move |_| {
-                pattern_entry.emit("changed", &[]).unwrap();
+                pattern_entry.emit_by_name::<()>("changed", &[]);
         }));
 
         case_insensitive.connect_toggled(glib::clone!(
             @weak pattern_entry => move |_| {
-                pattern_entry.emit("changed", &[]).unwrap();
+                pattern_entry.emit_by_name::<()>("changed", &[]);
         }));
     }
 
     fn get_replacement_rule(&self) -> Result<(Regex, String), Error> {
-        let pattern = self.get_object::<Entry>(ID_PATTERN_ENTRY).get_text();
-        let replacement = self.get_object::<Entry>(ID_REPLACEMENT_ENTRY).get_text();
-        let is_regexp_supported = self
-            .get_object::<CheckButton>(ID_REGEXP_SUPPORTED)
-            .get_active();
-        let is_case_sensitive = self
-            .get_object::<CheckButton>(ID_CASE_SENSITIVE)
-            .get_active();
+        let pattern = self.object::<Entry>(ID_PATTERN_ENTRY).text();
+        let replacement = self.object::<Entry>(ID_REPLACEMENT_ENTRY).text();
+        let is_regexp_supported = self.object::<CheckButton>(ID_REGEXP_SUPPORTED).is_active();
+        let is_case_sensitive = self.object::<CheckButton>(ID_CASE_SENSITIVE).is_active();
 
         let (pattern, replacement) = if is_regexp_supported {
             (pattern.to_string(), replacement.to_string())
@@ -145,14 +141,14 @@ impl ReplaceRenamer {
             .into_iter()
     }
 
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 }
 
 impl Renamer for ReplaceRenamer {
     fn get_panel(&self) -> Container {
-        self.get_object::<Container>(ID_REPLACE_RENAMER_PANEL)
+        self.object::<Container>(ID_REPLACE_RENAMER_PANEL)
     }
 
     fn apply_replacement(
@@ -178,21 +174,23 @@ impl Renamer for ReplaceRenamer {
 mod test {
     use super::*;
     use crate::utils::CounterObserver;
-    use gtk::WindowBuilder;
+    use gtk::Window;
 
     #[test]
     fn test_replace_renamer_callback() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let counter_observer = Rc::new(CounterObserver::new());
         let replace_renamer = ReplaceRenamer::new();
-        let pattern_entry = replace_renamer.get_object::<Entry>(ID_PATTERN_ENTRY);
-        let regexp_supported = replace_renamer.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
-        let replacement_entry = replace_renamer.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
-        let case_insensitive = replace_renamer.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+        let pattern_entry = replace_renamer.object::<Entry>(ID_PATTERN_ENTRY);
+        let regexp_supported = replace_renamer.object::<CheckButton>(ID_REGEXP_SUPPORTED);
+        let replacement_entry = replace_renamer.object::<Entry>(ID_REPLACEMENT_ENTRY);
+        let case_insensitive = replace_renamer.object::<CheckButton>(ID_CASE_SENSITIVE);
 
         replace_renamer.attach_change(counter_observer.clone());
 
-        WindowBuilder::new()
+        Window::builder()
             .child(&replace_renamer.get_panel())
             .build()
             .show_all();
@@ -283,12 +281,14 @@ mod test {
 
     #[test]
     fn test_replace_renamer_get_replacement_rule_and_apply_replacement() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let replace_renamer = ReplaceRenamer::new();
-        let pattern_entry = replace_renamer.get_object::<Entry>(ID_PATTERN_ENTRY);
-        let regexp_supported = replace_renamer.get_object::<CheckButton>(ID_REGEXP_SUPPORTED);
-        let replacement_entry = replace_renamer.get_object::<Entry>(ID_REPLACEMENT_ENTRY);
-        let case_insensitive = replace_renamer.get_object::<CheckButton>(ID_CASE_SENSITIVE);
+        let pattern_entry = replace_renamer.object::<Entry>(ID_PATTERN_ENTRY);
+        let regexp_supported = replace_renamer.object::<CheckButton>(ID_REGEXP_SUPPORTED);
+        let replacement_entry = replace_renamer.object::<Entry>(ID_REPLACEMENT_ENTRY);
+        let case_insensitive = replace_renamer.object::<CheckButton>(ID_CASE_SENSITIVE);
 
         pattern_entry.set_text("a+bC(1)");
         replacement_entry.set_text("def$1");

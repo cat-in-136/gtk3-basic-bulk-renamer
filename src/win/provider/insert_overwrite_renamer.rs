@@ -41,10 +41,10 @@ impl InsertOverwriteRenamer {
     fn init_callback(&self) {
         let renamer_type = RenamerType::InsertOverwrite;
         let insert_overwrite_method_combo_box =
-            self.get_object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
-        let text_entry = self.get_object::<Entry>(ID_TEXT_ENTRY);
-        let at_position_spin_button = self.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
-        let at_position_combo_box = self.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+            self.object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
+        let text_entry = self.object::<Entry>(ID_TEXT_ENTRY);
+        let at_position_spin_button = self.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+        let at_position_combo_box = self.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
         let change_subject = self.change_subject.clone();
         insert_overwrite_method_combo_box.connect_changed(move |_| {
@@ -77,22 +77,22 @@ impl InsertOverwriteRenamer {
 
     fn get_replacement_rule(&self) -> Option<(String, InsertPosition)> {
         let insert_overwrite_method_combo_box =
-            self.get_object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
-        let text_entry = self.get_object::<Entry>(ID_TEXT_ENTRY);
-        let at_position_spin_button = self.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
-        let at_position_combo_box = self.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+            self.object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
+        let text_entry = self.object::<Entry>(ID_TEXT_ENTRY);
+        let at_position_spin_button = self.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+        let at_position_combo_box = self.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
         let insert_overwrite_method = insert_overwrite_method_combo_box
-            .get_active_id()
+            .active_id()
             .and_then(|id| TextInsertOrOverwrite::from_str(id.as_str()).ok())
             .unwrap_or_default();
-        let pos = usize::try_from(at_position_spin_button.get_value_as_int()).unwrap_or(0);
+        let pos = usize::try_from(at_position_spin_button.value_as_int()).unwrap_or(0);
         let text_character_position = at_position_combo_box
-            .get_active_id()
+            .active_id()
             .and_then(|id| TextCharPosition::from_str_usize(id.as_str(), pos))?;
         let insert_position = InsertPosition(text_character_position, insert_overwrite_method);
 
-        Some((text_entry.get_text().to_string(), insert_position))
+        Some((text_entry.text().to_string(), insert_position))
     }
 
     fn apply_replace_with(
@@ -129,14 +129,14 @@ impl InsertOverwriteRenamer {
             .into_iter()
     }
 
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 }
 
 impl Renamer for InsertOverwriteRenamer {
     fn get_panel(&self) -> Container {
-        self.get_object::<Container>(ID_INSERT_OVERWRITE_RENAMER_PANEL)
+        self.object::<Container>(ID_INSERT_OVERWRITE_RENAMER_PANEL)
     }
 
     fn apply_replacement(
@@ -157,24 +157,26 @@ impl Renamer for InsertOverwriteRenamer {
 mod test {
     use super::*;
     use crate::utils::CounterObserver;
-    use gtk::WindowBuilder;
+    use gtk::Window;
 
     #[test]
     fn test_insert_overwrite_renamer_callback() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let counter_observer = Rc::new(CounterObserver::new());
         let insert_overwrite_renamer = InsertOverwriteRenamer::new();
-        let insert_overwrite_method_combo_box = insert_overwrite_renamer
-            .get_object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
-        let text_entry = insert_overwrite_renamer.get_object::<Entry>(ID_TEXT_ENTRY);
+        let insert_overwrite_method_combo_box =
+            insert_overwrite_renamer.object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
+        let text_entry = insert_overwrite_renamer.object::<Entry>(ID_TEXT_ENTRY);
         let at_position_spin_button =
-            insert_overwrite_renamer.get_object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+            insert_overwrite_renamer.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
         let at_position_combo_box =
-            insert_overwrite_renamer.get_object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+            insert_overwrite_renamer.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
         insert_overwrite_renamer.attach_change(counter_observer.clone());
 
-        WindowBuilder::new()
+        Window::builder()
             .child(&insert_overwrite_renamer.get_panel())
             .build()
             .show_all();

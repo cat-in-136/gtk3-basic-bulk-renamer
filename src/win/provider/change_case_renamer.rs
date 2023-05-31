@@ -65,7 +65,7 @@ impl ChangeCaseRenamer {
 
     fn init_callback(&self) {
         let renamer_type = RenamerType::ChangeCase;
-        let change_case_combo_box = self.get_object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
+        let change_case_combo_box = self.object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
 
         let change_subject = self.change_subject.clone();
         change_case_combo_box.connect_changed(move |_| {
@@ -76,10 +76,10 @@ impl ChangeCaseRenamer {
     }
 
     fn get_replacement_rule(&self) -> Option<ChangeCaseKind> {
-        let change_case_combo_box = self.get_object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
+        let change_case_combo_box = self.object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
 
         change_case_combo_box
-            .get_active_id()
+            .active_id()
             .and_then(|id| ChangeCaseKind::from_str(id.as_str()).ok())
     }
 
@@ -119,14 +119,14 @@ impl ChangeCaseRenamer {
             .into_iter()
     }
 
-    fn get_object<T: IsA<glib::Object>>(&self, name: &str) -> T {
-        self.builder.get_object(name).unwrap()
+    fn object<T: IsA<glib::Object>>(&self, name: &str) -> T {
+        self.builder.object(name).unwrap()
     }
 }
 
 impl Renamer for ChangeCaseRenamer {
     fn get_panel(&self) -> Container {
-        self.get_object::<Container>(ID_CHANGE_CASE_RENAMER_PANEL)
+        self.object::<Container>(ID_CHANGE_CASE_RENAMER_PANEL)
     }
 
     fn apply_replacement(
@@ -178,19 +178,21 @@ impl CaseConversion for str {
 mod test {
     use super::*;
     use crate::utils::CounterObserver;
-    use gtk::WindowBuilder;
+    use gtk::Window;
 
     #[test]
     fn test_insert_overwrite_renamer_callback() {
-        gtk::init().unwrap();
+        if !gtk::is_initialized() {
+            gtk::init().unwrap();
+        }
         let counter_observer = Rc::new(CounterObserver::new());
         let change_case_renamer = ChangeCaseRenamer::new();
         let change_case_combo_box =
-            change_case_renamer.get_object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
+            change_case_renamer.object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
 
         change_case_renamer.attach_change(counter_observer.clone());
 
-        WindowBuilder::new()
+        Window::builder()
             .child(&change_case_renamer.get_panel())
             .build()
             .show_all();
