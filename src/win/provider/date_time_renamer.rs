@@ -229,6 +229,7 @@ impl Renamer for DateTimeRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use crate::utils::CounterObserver;
     use crate::utils::InsertPosition;
     use gtk::Window;
@@ -237,47 +238,46 @@ mod test {
 
     #[test]
     fn test_replace_renamer_callback() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let counter_observer = Rc::new(CounterObserver::new());
-        let date_time_renamer = DateTimeRenamer::new();
-        let insert_time_combo_box =
-            date_time_renamer.object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
-        let format_entry = date_time_renamer.object::<Entry>(ID_FORMAT_ENTRY);
-        let at_position_spin_button =
-            date_time_renamer.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
-        let at_position_combo_box =
-            date_time_renamer.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+        test_synced(move || {
+            let counter_observer = Rc::new(CounterObserver::new());
+            let date_time_renamer = DateTimeRenamer::new();
+            let insert_time_combo_box =
+                date_time_renamer.object::<ComboBoxText>(ID_INSERT_TIME_COMBO_BOX);
+            let format_entry = date_time_renamer.object::<Entry>(ID_FORMAT_ENTRY);
+            let at_position_spin_button =
+                date_time_renamer.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+            let at_position_combo_box =
+                date_time_renamer.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
-        date_time_renamer.attach_change(counter_observer.clone());
+            date_time_renamer.attach_change(counter_observer.clone());
 
-        Window::builder()
-            .child(&date_time_renamer.get_panel())
-            .build()
-            .show_all();
+            Window::builder()
+                .child(&date_time_renamer.get_panel())
+                .build()
+                .show_all();
 
-        counter_observer.reset();
-        insert_time_combo_box.clone().set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            insert_time_combo_box.clone().set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        gtk_test::focus(&format_entry);
-        gtk_test::enter_keys(&format_entry, "%Y-%d");
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), "%Y-%d".len());
+            counter_observer.reset();
+            gtk_test::focus(&format_entry);
+            gtk_test::enter_keys(&format_entry, "%Y-%d");
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), "%Y-%d".len());
 
-        counter_observer.reset();
-        gtk_test::focus(&at_position_spin_button);
-        gtk_test::enter_key(&at_position_spin_button, gdk::keys::constants::uparrow);
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            gtk_test::focus(&at_position_spin_button);
+            gtk_test::enter_key(&at_position_spin_button, gdk::keys::constants::uparrow);
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        at_position_combo_box.clone().set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            at_position_combo_box.clone().set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
+        });
     }
 
     #[test]

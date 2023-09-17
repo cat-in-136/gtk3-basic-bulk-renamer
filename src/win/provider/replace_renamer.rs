@@ -173,50 +173,50 @@ impl Renamer for ReplaceRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use crate::utils::CounterObserver;
     use gtk::Window;
 
     #[test]
     fn test_replace_renamer_callback() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let counter_observer = Rc::new(CounterObserver::new());
-        let replace_renamer = ReplaceRenamer::new();
-        let pattern_entry = replace_renamer.object::<Entry>(ID_PATTERN_ENTRY);
-        let regexp_supported = replace_renamer.object::<CheckButton>(ID_REGEXP_SUPPORTED);
-        let replacement_entry = replace_renamer.object::<Entry>(ID_REPLACEMENT_ENTRY);
-        let case_insensitive = replace_renamer.object::<CheckButton>(ID_CASE_SENSITIVE);
+        test_synced(move || {
+            let counter_observer = Rc::new(CounterObserver::new());
+            let replace_renamer = ReplaceRenamer::new();
+            let pattern_entry = replace_renamer.object::<Entry>(ID_PATTERN_ENTRY);
+            let regexp_supported = replace_renamer.object::<CheckButton>(ID_REGEXP_SUPPORTED);
+            let replacement_entry = replace_renamer.object::<Entry>(ID_REPLACEMENT_ENTRY);
+            let case_insensitive = replace_renamer.object::<CheckButton>(ID_CASE_SENSITIVE);
 
-        replace_renamer.attach_change(counter_observer.clone());
+            replace_renamer.attach_change(counter_observer.clone());
 
-        Window::builder()
-            .child(&replace_renamer.get_panel())
-            .build()
-            .show_all();
+            Window::builder()
+                .child(&replace_renamer.get_panel())
+                .build()
+                .show_all();
 
-        counter_observer.reset();
-        gtk_test::enter_keys(&pattern_entry, "from");
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), "from".len());
+            counter_observer.reset();
+            gtk_test::enter_keys(&pattern_entry, "from");
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), "from".len());
 
-        counter_observer.reset();
-        gtk_test::click(&regexp_supported);
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
-        gtk_test::click(&regexp_supported);
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 2);
+            counter_observer.reset();
+            gtk_test::click(&regexp_supported);
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
+            gtk_test::click(&regexp_supported);
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 2);
 
-        counter_observer.reset();
-        gtk_test::enter_keys(&replacement_entry, "to");
-        assert_eq!(counter_observer.count(), "to".len());
+            counter_observer.reset();
+            gtk_test::enter_keys(&replacement_entry, "to");
+            assert_eq!(counter_observer.count(), "to".len());
 
-        counter_observer.reset();
-        gtk_test::click(&case_insensitive);
-        assert_eq!(counter_observer.count(), 1);
-        gtk_test::click(&case_insensitive);
-        assert_eq!(counter_observer.count(), 2);
+            counter_observer.reset();
+            gtk_test::click(&case_insensitive);
+            assert_eq!(counter_observer.count(), 1);
+            gtk_test::click(&case_insensitive);
+            assert_eq!(counter_observer.count(), 2);
+        });
     }
 
     #[test]
@@ -281,44 +281,43 @@ mod test {
 
     #[test]
     fn test_replace_renamer_get_replacement_rule_and_apply_replacement() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let replace_renamer = ReplaceRenamer::new();
-        let pattern_entry = replace_renamer.object::<Entry>(ID_PATTERN_ENTRY);
-        let regexp_supported = replace_renamer.object::<CheckButton>(ID_REGEXP_SUPPORTED);
-        let replacement_entry = replace_renamer.object::<Entry>(ID_REPLACEMENT_ENTRY);
-        let case_insensitive = replace_renamer.object::<CheckButton>(ID_CASE_SENSITIVE);
+        test_synced(move || {
+            let replace_renamer = ReplaceRenamer::new();
+            let pattern_entry = replace_renamer.object::<Entry>(ID_PATTERN_ENTRY);
+            let regexp_supported = replace_renamer.object::<CheckButton>(ID_REGEXP_SUPPORTED);
+            let replacement_entry = replace_renamer.object::<Entry>(ID_REPLACEMENT_ENTRY);
+            let case_insensitive = replace_renamer.object::<CheckButton>(ID_CASE_SENSITIVE);
 
-        pattern_entry.set_text("a+bC(1)");
-        replacement_entry.set_text("def$1");
+            pattern_entry.set_text("a+bC(1)");
+            replacement_entry.set_text("def$1");
 
-        regexp_supported.set_active(false);
-        case_insensitive.set_active(false);
-        let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
-        assert_eq!(matcher.as_str(), "a\\+bC\\(1\\)");
-        assert_eq!(replacement.as_str(), "def$$1");
-        assert!(matcher.is_match("A+BC(1)"));
+            regexp_supported.set_active(false);
+            case_insensitive.set_active(false);
+            let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
+            assert_eq!(matcher.as_str(), "a\\+bC\\(1\\)");
+            assert_eq!(replacement.as_str(), "def$$1");
+            assert!(matcher.is_match("A+BC(1)"));
 
-        regexp_supported.set_active(false);
-        case_insensitive.set_active(true);
-        let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
-        assert_eq!(matcher.as_str(), "a\\+bC\\(1\\)");
-        assert_eq!(replacement.as_str(), "def$$1");
-        assert!(!matcher.is_match("A+BC(1)"));
+            regexp_supported.set_active(false);
+            case_insensitive.set_active(true);
+            let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
+            assert_eq!(matcher.as_str(), "a\\+bC\\(1\\)");
+            assert_eq!(replacement.as_str(), "def$$1");
+            assert!(!matcher.is_match("A+BC(1)"));
 
-        regexp_supported.set_active(true);
-        case_insensitive.set_active(false);
-        let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
-        assert_eq!(matcher.as_str(), "a+bC(1)");
-        assert_eq!(replacement.as_str(), "def$1");
-        assert!(matcher.is_match("AaBC1"));
+            regexp_supported.set_active(true);
+            case_insensitive.set_active(false);
+            let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
+            assert_eq!(matcher.as_str(), "a+bC(1)");
+            assert_eq!(replacement.as_str(), "def$1");
+            assert!(matcher.is_match("AaBC1"));
 
-        regexp_supported.set_active(true);
-        case_insensitive.set_active(true);
-        let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
-        assert_eq!(matcher.as_str(), "a+bC(1)");
-        assert_eq!(replacement.as_str(), "def$1");
-        assert!(!matcher.is_match("AaBC1"));
+            regexp_supported.set_active(true);
+            case_insensitive.set_active(true);
+            let (matcher, replacement) = replace_renamer.get_replacement_rule().unwrap();
+            assert_eq!(matcher.as_str(), "a+bC(1)");
+            assert_eq!(replacement.as_str(), "def$1");
+            assert!(!matcher.is_match("AaBC1"));
+        });
     }
 }

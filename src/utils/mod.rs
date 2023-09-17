@@ -86,6 +86,7 @@ pub(crate) fn split_file_at_dot(file: &str) -> (&str, Option<&str>) {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use glib::Type;
     use gtk::Clipboard;
 
@@ -97,61 +98,57 @@ mod test {
 
     #[test]
     fn test_list_store_data_iter() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-
-        let list_store = ListStore::new(&[Type::STRING, Type::STRING]);
-        assert_eq!(
-            list_store_data_iter(&list_store).collect::<Vec<_>>().len(),
-            0
-        );
-
-        for i in 0..3 {
-            let iter = list_store.append();
-            list_store.set(
-                &iter,
-                &[
-                    (0, &format!("{}", i).to_string()),
-                    (1, &"dummy".to_string()),
-                ],
+        test_synced(move || {
+            let list_store = ListStore::new(&[Type::STRING, Type::STRING]);
+            assert_eq!(
+                list_store_data_iter(&list_store).collect::<Vec<_>>().len(),
+                0
             );
-        }
-        assert_eq!(
-            list_store_data_iter(&list_store)
-                .map(|v| v
-                    .iter()
-                    .map(|val| val.get::<String>())
-                    .map(|val| val.ok())
-                    .collect::<Vec<_>>())
-                .collect::<Vec<_>>()
-                .as_slice(),
-            &[
-                vec![Some("0".to_string()), Some("dummy".to_string())],
-                vec![Some("1".to_string()), Some("dummy".to_string())],
-                vec![Some("2".to_string()), Some("dummy".to_string())],
-            ]
-        );
+
+            for i in 0..3 {
+                let iter = list_store.append();
+                list_store.set(
+                    &iter,
+                    &[
+                        (0, &format!("{}", i).to_string()),
+                        (1, &"dummy".to_string()),
+                    ],
+                );
+            }
+            assert_eq!(
+                list_store_data_iter(&list_store)
+                    .map(|v| v
+                        .iter()
+                        .map(|val| val.get::<String>())
+                        .map(|val| val.ok())
+                        .collect::<Vec<_>>())
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+                &[
+                    vec![Some("0".to_string()), Some("dummy".to_string())],
+                    vec![Some("1".to_string()), Some("dummy".to_string())],
+                    vec![Some("2".to_string()), Some("dummy".to_string())],
+                ]
+            );
+        });
     }
 
     #[test]
     fn test_get_path_from_selection_data() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
+        test_synced(move || {
+            let clipboard = Clipboard::get(&gdk::SELECTION_CLIPBOARD);
+            clipboard.clear();
+            clipboard.set_text("file:///tmp/test\n/home/test/foobar");
 
-        let clipboard = Clipboard::get(&gdk::SELECTION_CLIPBOARD);
-        clipboard.clear();
-        clipboard.set_text("file:///tmp/test\n/home/test/foobar");
-
-        let selection = clipboard.wait_for_contents(&gdk::TARGET_STRING).unwrap();
-        assert_eq!(
-            get_path_from_selection_data(&selection),
-            vec![
-                PathBuf::from("/tmp/test"),
-                PathBuf::from("/home/test/foobar")
-            ]
-        );
+            let selection = clipboard.wait_for_contents(&gdk::TARGET_STRING).unwrap();
+            assert_eq!(
+                get_path_from_selection_data(&selection),
+                vec![
+                    PathBuf::from("/tmp/test"),
+                    PathBuf::from("/home/test/foobar")
+                ]
+            );
+        });
     }
 
     #[test]

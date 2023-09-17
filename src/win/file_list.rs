@@ -92,6 +92,7 @@ pub(super) fn apply_renamer_to_file_list(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use crate::utils::Observer;
     use crate::win::file_list::RenamerTarget;
     use crate::win::provider::RenamerObserverArg;
@@ -144,177 +145,170 @@ mod test {
 
     #[test]
     fn test_add_files_to_file_list() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
+        test_synced(move || {
+            let file_list_store = list_store();
+            assert_eq!(file_list_store.iter_n_children(None), 0);
 
-        let file_list_store = list_store();
-        assert_eq!(file_list_store.iter_n_children(None), 0);
+            add_files_to_file_list(
+                &file_list_store,
+                &[PathBuf::from("test"), PathBuf::from("/test2")],
+            );
+            assert_eq!(file_list_store.iter_n_children(None), 2);
 
-        add_files_to_file_list(
-            &file_list_store,
-            &[PathBuf::from("test"), PathBuf::from("/test2")],
-        );
-        assert_eq!(file_list_store.iter_n_children(None), 2);
-
-        let iter = file_list_store.iter_nth_child(None, 0).unwrap();
-        assert_eq!(
-            file_list_store.value(&iter, 0).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 1).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 2).get(),
-            Ok(Some(String::from("")))
-        );
-        let iter = file_list_store.iter_nth_child(None, 1).unwrap();
-        assert_eq!(
-            file_list_store.value(&iter, 0).get(),
-            Ok(Some(String::from("test2")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 1).get(),
-            Ok(Some(String::from("test2")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 2).get(),
-            Ok(Some(String::from("/")))
-        );
+            let iter = file_list_store.iter_nth_child(None, 0).unwrap();
+            assert_eq!(
+                file_list_store.value(&iter, 0).get(),
+                Ok(Some(String::from("test")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 1).get(),
+                Ok(Some(String::from("test")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 2).get(),
+                Ok(Some(String::from("")))
+            );
+            let iter = file_list_store.iter_nth_child(None, 1).unwrap();
+            assert_eq!(
+                file_list_store.value(&iter, 0).get(),
+                Ok(Some(String::from("test2")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 1).get(),
+                Ok(Some(String::from("test2")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 2).get(),
+                Ok(Some(String::from("/")))
+            );
+        });
     }
 
     #[test]
     fn test_get_files_from_file_list() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
+        test_synced(move || {
+            let file_list_store = list_store();
 
-        let file_list_store = list_store();
+            assert_eq!(
+                get_files_from_file_list(&file_list_store).collect::<Vec<_>>(),
+                vec![]
+            );
 
-        assert_eq!(
-            get_files_from_file_list(&file_list_store).collect::<Vec<_>>(),
-            vec![]
-        );
+            let iter = file_list_store.append();
+            file_list_store.set(
+                &iter,
+                &[
+                    (0, &"test".to_string()),
+                    (1, &"test2".to_string()),
+                    (2, &"/".to_string()),
+                ],
+            );
 
-        let iter = file_list_store.append();
-        file_list_store.set(
-            &iter,
-            &[
-                (0, &"test".to_string()),
-                (1, &"test2".to_string()),
-                (2, &"/".to_string()),
-            ],
-        );
-
-        assert_eq!(
-            get_files_from_file_list(&file_list_store).collect::<Vec<_>>(),
-            vec![(
-                PathBuf::from("/").join("test"),
-                PathBuf::from("/").join("test2")
-            )]
-        );
-
-        let iter = file_list_store.append();
-        file_list_store.set(
-            &iter,
-            &[
-                (0, &"test3".to_string()),
-                (1, &"test4".to_string()),
-                (2, &"/tmp".to_string()),
-            ],
-        );
-
-        assert_eq!(
-            get_files_from_file_list(&file_list_store).collect::<Vec<_>>(),
-            vec![
-                (
+            assert_eq!(
+                get_files_from_file_list(&file_list_store).collect::<Vec<_>>(),
+                vec![(
                     PathBuf::from("/").join("test"),
                     PathBuf::from("/").join("test2")
-                ),
-                (
-                    PathBuf::from("/tmp").join("test3"),
-                    PathBuf::from("/tmp").join("test4")
-                ),
-            ]
-        );
+                )]
+            );
+
+            let iter = file_list_store.append();
+            file_list_store.set(
+                &iter,
+                &[
+                    (0, &"test3".to_string()),
+                    (1, &"test4".to_string()),
+                    (2, &"/tmp".to_string()),
+                ],
+            );
+
+            assert_eq!(
+                get_files_from_file_list(&file_list_store).collect::<Vec<_>>(),
+                vec![
+                    (
+                        PathBuf::from("/").join("test"),
+                        PathBuf::from("/").join("test2")
+                    ),
+                    (
+                        PathBuf::from("/tmp").join("test3"),
+                        PathBuf::from("/tmp").join("test4")
+                    ),
+                ]
+            );
+        });
     }
 
     #[test]
     fn test_reset_renaming_of_file_list() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
+        test_synced(move || {
+            let file_list_store = list_store();
 
-        let file_list_store = list_store();
+            let iter = file_list_store.append();
+            file_list_store.set(
+                &iter,
+                &[
+                    (0, &"test".to_string()),
+                    (1, &"test2".to_string()),
+                    (2, &"/".to_string()),
+                ],
+            );
 
-        let iter = file_list_store.append();
-        file_list_store.set(
-            &iter,
-            &[
-                (0, &"test".to_string()),
-                (1, &"test2".to_string()),
-                (2, &"/".to_string()),
-            ],
-        );
+            reset_renaming_of_file_list(&file_list_store);
 
-        reset_renaming_of_file_list(&file_list_store);
-
-        let iter = file_list_store.iter_nth_child(None, 0).unwrap();
-        assert_eq!(
-            file_list_store.value(&iter, 0).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 1).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 2).get(),
-            Ok(Some(String::from("/")))
-        );
+            let iter = file_list_store.iter_nth_child(None, 0).unwrap();
+            assert_eq!(
+                file_list_store.value(&iter, 0).get(),
+                Ok(Some(String::from("test")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 1).get(),
+                Ok(Some(String::from("test")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 2).get(),
+                Ok(Some(String::from("/")))
+            );
+        });
     }
 
     #[test]
     fn test_apply_renamer_to_file_list() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let file_list_store = list_store();
-        let test_renamer = TestRenamer {
-            prefix: "ABC".to_string(),
-        };
-        let test_renamer = test_renamer.into_boxed_dyn();
+        test_synced(move || {
+            let file_list_store = list_store();
+            let test_renamer = TestRenamer {
+                prefix: "ABC".to_string(),
+            };
+            let test_renamer = test_renamer.into_boxed_dyn();
 
-        apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
-            .unwrap();
+            apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
+                .unwrap();
 
-        let iter = file_list_store.append();
-        file_list_store.set(
-            &iter,
-            &[
-                (0, &"test".to_string()),
-                (1, &"test2".to_string()),
-                (2, &"/".to_string()),
-            ],
-        );
+            let iter = file_list_store.append();
+            file_list_store.set(
+                &iter,
+                &[
+                    (0, &"test".to_string()),
+                    (1, &"test2".to_string()),
+                    (2, &"/".to_string()),
+                ],
+            );
 
-        apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
-            .unwrap();
+            apply_renamer_to_file_list(&file_list_store, RenamerTarget::All, test_renamer.clone())
+                .unwrap();
 
-        let iter = file_list_store.iter_nth_child(None, 0).unwrap();
-        assert_eq!(
-            file_list_store.value(&iter, 0).get(),
-            Ok(Some(String::from("test")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 1).get(),
-            Ok(Some(String::from("ABC-test")))
-        );
-        assert_eq!(
-            file_list_store.value(&iter, 2).get(),
-            Ok(Some(String::from("/")))
-        );
+            let iter = file_list_store.iter_nth_child(None, 0).unwrap();
+            assert_eq!(
+                file_list_store.value(&iter, 0).get(),
+                Ok(Some(String::from("test")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 1).get(),
+                Ok(Some(String::from("ABC-test")))
+            );
+            assert_eq!(
+                file_list_store.value(&iter, 2).get(),
+                Ok(Some(String::from("/")))
+            );
+        });
     }
 }

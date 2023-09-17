@@ -321,50 +321,49 @@ impl Observer<RenamerObserverArg, Error> for RenamerChangeObserver {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
 
     #[test]
     fn test_init_actions_signals() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
+        test_synced(move || {
+            let win = Window::new::<Application>(None);
+            win.main_window().show_all();
 
-        let win = Window::new::<Application>(None);
-        win.main_window().show_all();
+            assert_eq!(
+                win.object::<ListStore>(ID_FILE_LIST_STORE)
+                    .iter_n_children(None),
+                0
+            );
 
-        assert_eq!(
-            win.object::<ListStore>(ID_FILE_LIST_STORE)
-                .iter_n_children(None),
-            0
-        );
+            assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), false);
+            assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), false);
+            assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), false);
 
-        assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
-        assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), false);
-        assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), false);
-        assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), false);
+            win.set_files(&[PathBuf::from("test")]);
+            assert_eq!(
+                win.object::<ListStore>(ID_FILE_LIST_STORE)
+                    .iter_n_children(None),
+                1
+            );
 
-        win.set_files(&[PathBuf::from("test")]);
-        assert_eq!(
-            win.object::<ListStore>(ID_FILE_LIST_STORE)
-                .iter_n_children(None),
-            1
-        );
+            assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), false);
+            assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), true);
 
-        assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
-        assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), false);
-        assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), true);
-        assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), true);
+            gtk_test::click(&win.object::<TreeView>(ID_FILE_LIST));
+            assert_eq!(
+                win.object::<TreeView>(ID_FILE_LIST)
+                    .selection()
+                    .count_selected_rows(),
+                1
+            );
 
-        gtk_test::click(&win.object::<TreeView>(ID_FILE_LIST));
-        assert_eq!(
-            win.object::<TreeView>(ID_FILE_LIST)
-                .selection()
-                .count_selected_rows(),
-            1
-        );
-
-        assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
-        assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), true);
-        assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), true);
-        assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_ADD).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_REMOVE).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_CLEAR).is_enabled(), true);
+            assert_eq!(win.simple_action(ACTION_EXECUTE).is_enabled(), true);
+        });
     }
 }
