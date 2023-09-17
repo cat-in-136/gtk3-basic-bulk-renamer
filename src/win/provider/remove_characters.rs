@@ -153,53 +153,53 @@ impl Renamer for RemoveCharactersRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use crate::utils::CounterObserver;
     use gtk::Window;
 
     #[test]
     fn test_insert_overwrite_renamer_callback() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let counter_observer = Rc::new(CounterObserver::new());
-        let remove_characters_renamer = RemoveCharactersRenamer::new();
-        let remove_from_spinner_button =
-            remove_characters_renamer.object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
-        let remove_from_combo_button =
-            remove_characters_renamer.object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
-        let remove_to_spinner_button =
-            remove_characters_renamer.object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
-        let remove_to_combo_button =
-            remove_characters_renamer.object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
+        test_synced(move || {
+            let counter_observer = Rc::new(CounterObserver::new());
+            let remove_characters_renamer = RemoveCharactersRenamer::new();
+            let remove_from_spinner_button =
+                remove_characters_renamer.object::<SpinButton>(ID_REMOVE_FROM_SPINNER_BUTTON);
+            let remove_from_combo_button =
+                remove_characters_renamer.object::<ComboBoxText>(ID_REMOVE_FROM_COMBO_BOX);
+            let remove_to_spinner_button =
+                remove_characters_renamer.object::<SpinButton>(ID_REMOVE_TO_SPINNER_BUTTON);
+            let remove_to_combo_button =
+                remove_characters_renamer.object::<ComboBoxText>(ID_REMOVE_TO_COMBO_BOX);
 
-        remove_characters_renamer.attach_change(counter_observer.clone());
+            remove_characters_renamer.attach_change(counter_observer.clone());
 
-        Window::builder()
-            .child(&remove_characters_renamer.get_panel())
-            .build()
-            .show_all();
+            Window::builder()
+                .child(&remove_characters_renamer.get_panel())
+                .build()
+                .show_all();
 
-        counter_observer.reset();
-        gtk_test::focus(&remove_from_spinner_button);
-        gtk_test::enter_key(&remove_from_spinner_button, gdk::keys::constants::uparrow);
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            gtk_test::focus(&remove_from_spinner_button);
+            gtk_test::enter_key(&remove_from_spinner_button, gdk::keys::constants::uparrow);
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        remove_from_combo_button.clone().set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            remove_from_combo_button.clone().set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        gtk_test::focus(&remove_to_spinner_button);
-        gtk_test::enter_key(&remove_to_spinner_button, gdk::keys::constants::uparrow);
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            gtk_test::focus(&remove_to_spinner_button);
+            gtk_test::enter_key(&remove_to_spinner_button, gdk::keys::constants::uparrow);
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        remove_to_combo_button.clone().set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            remove_to_combo_button.clone().set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
+        });
     }
 
     #[test]

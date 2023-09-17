@@ -97,23 +97,23 @@ impl Provider {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use gtk::prelude::*;
     use strum::IntoEnumIterator;
 
     #[test]
     fn test_provider() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let provider = Provider::new();
+        test_synced(move || {
+            let provider = Provider::new();
 
-        for renamer_type in RenamerType::iter() {
-            let renamer = provider.renamer_of(renamer_type);
-            let label = renamer_type.label();
-            let panel = renamer.get_panel();
+            for renamer_type in RenamerType::iter() {
+                let renamer = provider.renamer_of(renamer_type);
+                let label = renamer_type.label();
+                let panel = renamer.get_panel();
 
-            assert!(label.len() > 0);
-            assert!(panel.children().len() > 0);
-        }
+                assert!(label.len() > 0);
+                assert!(panel.children().len() > 0);
+            }
+        });
     }
 }

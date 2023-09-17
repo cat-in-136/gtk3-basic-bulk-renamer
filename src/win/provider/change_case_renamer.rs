@@ -177,30 +177,30 @@ impl CaseConversion for str {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use crate::utils::CounterObserver;
     use gtk::Window;
 
     #[test]
     fn test_insert_overwrite_renamer_callback() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let counter_observer = Rc::new(CounterObserver::new());
-        let change_case_renamer = ChangeCaseRenamer::new();
-        let change_case_combo_box =
-            change_case_renamer.object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
+        test_synced(move || {
+            let counter_observer = Rc::new(CounterObserver::new());
+            let change_case_renamer = ChangeCaseRenamer::new();
+            let change_case_combo_box =
+                change_case_renamer.object::<ComboBox>(ID_CHANGE_CASE_COMBO_BOX);
 
-        change_case_renamer.attach_change(counter_observer.clone());
+            change_case_renamer.attach_change(counter_observer.clone());
 
-        Window::builder()
-            .child(&change_case_renamer.get_panel())
-            .build()
-            .show_all();
+            Window::builder()
+                .child(&change_case_renamer.get_panel())
+                .build()
+                .show_all();
 
-        counter_observer.reset();
-        change_case_combo_box.clone().set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            change_case_combo_box.clone().set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
+        });
     }
 
     #[test]

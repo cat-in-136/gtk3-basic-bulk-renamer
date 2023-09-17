@@ -156,54 +156,54 @@ impl Renamer for InsertOverwriteRenamer {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::test_synced;
     use crate::utils::CounterObserver;
     use gtk::Window;
 
     #[test]
     fn test_insert_overwrite_renamer_callback() {
-        if !gtk::is_initialized() {
-            gtk::init().unwrap();
-        }
-        let counter_observer = Rc::new(CounterObserver::new());
-        let insert_overwrite_renamer = InsertOverwriteRenamer::new();
-        let insert_overwrite_method_combo_box =
-            insert_overwrite_renamer.object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
-        let text_entry = insert_overwrite_renamer.object::<Entry>(ID_TEXT_ENTRY);
-        let at_position_spin_button =
-            insert_overwrite_renamer.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
-        let at_position_combo_box =
-            insert_overwrite_renamer.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
+        test_synced(move || {
+            let counter_observer = Rc::new(CounterObserver::new());
+            let insert_overwrite_renamer = InsertOverwriteRenamer::new();
+            let insert_overwrite_method_combo_box = insert_overwrite_renamer
+                .object::<ComboBoxText>(ID_INSERT_OVERWRITE_METHOD_COMBO_BOX);
+            let text_entry = insert_overwrite_renamer.object::<Entry>(ID_TEXT_ENTRY);
+            let at_position_spin_button =
+                insert_overwrite_renamer.object::<SpinButton>(ID_AT_POSITION_SPINNER_BUTTON);
+            let at_position_combo_box =
+                insert_overwrite_renamer.object::<ComboBoxText>(ID_AT_POSITION_COMBO_BOX);
 
-        insert_overwrite_renamer.attach_change(counter_observer.clone());
+            insert_overwrite_renamer.attach_change(counter_observer.clone());
 
-        Window::builder()
-            .child(&insert_overwrite_renamer.get_panel())
-            .build()
-            .show_all();
+            Window::builder()
+                .child(&insert_overwrite_renamer.get_panel())
+                .build()
+                .show_all();
 
-        counter_observer.reset();
-        insert_overwrite_method_combo_box
-            .clone()
-            .set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            insert_overwrite_method_combo_box
+                .clone()
+                .set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        gtk_test::focus(&text_entry);
-        gtk_test::enter_keys(&text_entry, "text");
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), "text".len());
+            counter_observer.reset();
+            gtk_test::focus(&text_entry);
+            gtk_test::enter_keys(&text_entry, "text");
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), "text".len());
 
-        counter_observer.reset();
-        gtk_test::focus(&at_position_spin_button);
-        gtk_test::enter_key(&at_position_spin_button, gdk::keys::constants::uparrow);
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            gtk_test::focus(&at_position_spin_button);
+            gtk_test::enter_key(&at_position_spin_button, gdk::keys::constants::uparrow);
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
 
-        counter_observer.reset();
-        at_position_combo_box.clone().set_active(Some(1));
-        gtk_test::wait(1);
-        assert_eq!(counter_observer.count(), 1);
+            counter_observer.reset();
+            at_position_combo_box.clone().set_active(Some(1));
+            gtk_test::wait(1);
+            assert_eq!(counter_observer.count(), 1);
+        });
     }
 
     #[test]

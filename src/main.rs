@@ -25,3 +25,39 @@ fn main() {
     });
     application.run();
 }
+
+#[cfg(test)]
+mod test {
+
+    pub fn test_synced<F, R>(function: F) -> R
+    where
+        F: FnOnce() -> R + Send + std::panic::UnwindSafe + 'static,
+        R: Send + 'static,
+    {
+        // skip_assert_initialized!();
+
+        use std::panic;
+        use std::sync::mpsc;
+
+        let (tx, rx) = mpsc::sync_channel(1);
+        TEST_THREAD_WORKER
+            .push(move || {
+                tx.send(panic::catch_unwind(function))
+                    .unwrap_or_else(|_| panic!("Failed to return result from thread pool"));
+            })
+            .expect("Failed to schedule a test call");
+        rx.recv()
+            .expect("Failed to receive result from thread pool")
+            .unwrap_or_else(|e| std::panic::resume_unwind(e))
+    }
+
+    static TEST_THREAD_WORKER: glib::once_cell::sync::Lazy<glib::ThreadPool> =
+        glib::once_cell::sync::Lazy::new(|| {
+            let pool = glib::ThreadPool::exclusive(1).unwrap();
+            pool.push(move || {
+                gtk::init().expect("Tests failed to initialize gtk");
+            })
+            .expect("Failed to schedule a test call");
+            pool
+        });
+}
